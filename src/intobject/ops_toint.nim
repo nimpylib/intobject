@@ -8,7 +8,7 @@ import ./[
   decl, bit_length,
 ]
 export bit_length, signbit, decl
-import ../../../Include/internal/pycore_int
+import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
 
 proc hash*(self: PyIntObject): Hash {. inline, cdecl .} = 

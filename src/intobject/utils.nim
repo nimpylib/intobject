@@ -24,17 +24,16 @@ proc newPyIntOfLenUninit*(L: int): PyIntObject =
   if L != 0:
     result.sign = Positive
 
-proc setSignAndDigitCount*(intObj: PyIntObject, sign: IntSign, digitCount: int) =
+proc setSignAndDigitCount*(intObj: var PyIntObject, sign: IntSign, digitCount: int) =
   ## `_PyLong_SetSignAndDigitCount`
   intObj.sign = sign
   intObj.digits.setLen(digitCount)
 
 proc copy*(intObj: PyIntObject): PyIntObject =
   ## XXX: copy only digits (sign uninit!)
-  let newInt = newPyIntSimple()
-  newInt.digits = intObj.digits
-  newInt
-proc normalize*(a: PyIntObject) =
+  result = newPyIntSimple()
+  result.digits = intObj.digits
+proc normalize*(a: var PyIntObject) =
   for i in 0..<a.digits.len:
     if a.digits[^1] == 0:
       discard a.digits.pop()

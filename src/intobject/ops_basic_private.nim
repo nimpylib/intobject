@@ -1,8 +1,9 @@
 
-import ../numobjects_comm
+# import ../numobjects_comm
+import ./decl
 template demote*(x: TwoDigits): Digit =
   Digit(x shr digitBits)
-proc inplaceAdd*(a: PyIntObject, b: Digit) =
+proc inplaceAdd*(a: var PyIntObject, b: Digit) =
   var carry = TwoDigits(b)
   for i in 0..<a.digits.len:
     if carry == 0:

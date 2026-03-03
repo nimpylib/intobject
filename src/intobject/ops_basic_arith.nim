@@ -1,6 +1,11 @@
 
-import ../numobjects_comm
-import ./[utils, ops_basic_private]
+# import ../numobjects_comm
+import ./[decl, utils, signbit, ops_basic_private]
+
+template pyIntZero*: PyIntObject = newPyInt(0)
+template pyIntOne*: PyIntObject = newPyInt(1)
+template pyIntTwo*: PyIntObject = newPyInt(2)
+template pyIntTen*: PyIntObject = newPyInt(10)
 
 using self: PyIntObject
 # assuming all positive, return a - b
@@ -84,7 +89,7 @@ proc doMul(a, b: PyIntObject): PyIntObject =
     return doMul(b, a)
   var ints: seq[PyIntObject]
   for i, db in b.digits:
-    let c = a.doMul(db)
+    var c = a.doMul(db)
     let zeros = newSeq[Digit](i)
     c.digits = zeros & c.digits
     ints.add c
@@ -97,11 +102,11 @@ proc `<`*(a, b: PyIntObject): bool =
   of Negative:
     case b.sign
     of Negative:
-      return doCompare(a, b) == Positive
+      return doCompare(a, b) == IntSign.Positive
     of Zero, Positive:
       return true
   of Zero:
-    return b.sign == Positive
+    return b.sign == IntSign.Positive
   of Positive:
     case b.sign
     of Negative, Zero:
@@ -119,9 +124,9 @@ proc `+`*(a, b: PyIntObject): PyIntObject =
   of Negative:
     case b.sign
     of Negative:
-      let c = doAdd(a, b)
-      c.sign = Negative
-      return c
+      result = doAdd(a, b)
+      result.sign = Negative
+      return
     of Zero:
       return a
     of Positive:
@@ -135,9 +140,9 @@ proc `+`*(a, b: PyIntObject): PyIntObject =
     of Zero:
       return a
     of Positive:
-      let c = doAdd(a, b)
-      c.sign = Positive
-      return c
+      result = doAdd(a, b)
+      result.sign = Positive
+      return
 
 proc `-`*(a, b: PyIntObject): PyIntObject =
   case a.sign
@@ -148,27 +153,27 @@ proc `-`*(a, b: PyIntObject): PyIntObject =
     of Zero:
       return a
     of Positive:
-      let c = doAdd(a, b)
-      c.sign = Negative
-      return c
+      result = doAdd(a, b)
+      result.sign = Negative
+      return
   of Zero:
     case b.sign
     of Negative:
-      let c = b.copy()
-      c.sign = Positive
-      return c
+      result = b.copy()
+      result.sign = Positive
+      return
     of Zero:
       return a
     of Positive:
-      let c = b.copy()
-      c.sign = Negative
-      return c
+      result = b.copy()
+      result.sign = Negative
+      return
   of Positive:
     case b.sign
     of Negative:
-      let c = doAdd(a, b)
-      c.sign = Positive
-      return c
+      result = doAdd(a, b)
+      result.sign = Positive
+      return
     of Zero:
       return a
     of Positive:
@@ -189,26 +194,26 @@ proc `*`*(a, b: PyIntObject): PyIntObject =
   of Negative:
     case b.sign
     of Negative:
-      let c = doMul(a, b)
-      c.sign = Positive
-      return c
+      result = doMul(a, b)
+      result.sign = Positive
+      return
     of Zero:
       return pyIntZero
     of Positive:
-      let c = doMul(a, b)
-      c.sign = Negative
-      return c
+      result = doMul(a, b)
+      result.sign = Negative
+      return
   of Zero:
     return pyIntZero
   of Positive:
     case b.sign
     of Negative:
-      let c = doMul(a, b)
-      c.sign = Negative
-      return c
+      result = doMul(a, b)
+      result.sign = Negative
+      return
     of Zero:
       return pyIntZero
     of Positive:
-      let c = doMul(a, b)
-      c.sign = Positive
-      return c
+      result = doMul(a, b)
+      result.sign = Positive
+      return
