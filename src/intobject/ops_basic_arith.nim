@@ -160,13 +160,13 @@ proc `-`*(a, b: IntObject): IntObject =
   of Zero:
     case b.sign
     of Negative:
-      result = b.copy()
+      result = b.copyOnlyDigits()
       result.sign = Positive
       return
     of Zero:
       return a
     of Positive:
-      result = b.copy()
+      result = b.copyOnlyDigits()
       result.sign = Negative
       return
   of Positive:
@@ -182,7 +182,7 @@ proc `-`*(a, b: IntObject): IntObject =
 
 
 proc `-`*(a: IntObject): IntObject =
-  result = a.copy()
+  result = a.copyOnlyDigits()
   result.sign = a.sign
   result.flipSign
 

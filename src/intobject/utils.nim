@@ -29,7 +29,7 @@ proc setSignAndDigitCount*(intObj: var IntObject, sign: IntSign, digitCount: int
   intObj.sign = sign
   intObj.digits.setLen(digitCount)
 
-proc copy*(intObj: IntObject): IntObject =
+proc copyOnlyDigits*(intObj: IntObject): IntObject =
   ## XXX: copy only digits (sign uninit!)
   result = newIntSimple()
   result.digits = intObj.digits

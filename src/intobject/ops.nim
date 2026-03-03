@@ -637,7 +637,7 @@ proc fill(result: var string, i: IntObject) =
   if i.zero:
     result = "0"
     return
-  var ii = i.copy()
+  var ii = i.copyOnlyDigits()
   var r: Digit
   while true:
     ii = ii.divRem1(10, r)
