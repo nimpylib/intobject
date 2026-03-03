@@ -11,10 +11,10 @@ import ./[
 ]
 import ./[ops_toint, ops_basic_arith,]
 
-using self: PyIntObject
-proc `not`*(self): PyIntObject =
+using self: IntObject
+proc `not`*(self): IntObject =
   ## long_invert
-  result = self + pyIntOne
+  result = self + intOne
   result.negate
 
 
@@ -32,7 +32,7 @@ proc vComplement(z: var openArray[Digit], a: openArray[Digit], m: int) =
     else:
       carry = 0
 
-proc longBitwise(a: PyIntObject, op: static[char], b: PyIntObject): PyIntObject =
+proc longBitwise(a: IntObject, op: static[char], b: IntObject): IntObject =
   ## Bitwise and/xor/or operations
   var
     a = a
@@ -43,16 +43,16 @@ proc longBitwise(a: PyIntObject, op: static[char], b: PyIntObject): PyIntObject 
     negb = b.negative()
     sizeZ: int
     negz: bool
-    z: PyIntObject
+    z: IntObject
 
   # Convert arguments from sign-magnitude to two's complement
   if nega:
-    z = newPyIntOfLen(sizeA)
+    z = newIntOfLen(sizeA)
     vComplement(z.digits, a.digits, sizeA)
     a = z
 
   if negb:
-    z = newPyIntOfLen(sizeB)
+    z = newIntOfLen(sizeB)
     vComplement(z.digits, b.digits, sizeB)
     b = z
 
@@ -76,7 +76,7 @@ proc longBitwise(a: PyIntObject, op: static[char], b: PyIntObject): PyIntObject 
   else: unreachable
 
   # Allocate result
-  z = newPyIntOfLen(sizeZ + int negz)
+  z = newIntOfLen(sizeZ + int negz)
 
   template doOp(op) =
     for i in 0..<sizeB:
@@ -105,7 +105,7 @@ proc longBitwise(a: PyIntObject, op: static[char], b: PyIntObject): PyIntObject 
 
 
 template genBOp(op; cop){.dirty.} =
-  proc `op`*(a, b: PyIntObject): PyIntObject = longBitwise(a, cop, b)
+  proc `op`*(a, b: IntObject): IntObject = longBitwise(a, cop, b)
 
 genBOp(`and`, '&')
 genBOp(`or`, '|')
@@ -117,7 +117,7 @@ template tooManyShiftErr =
   raise newException(OverflowDefect, "too many digits in integer")
 
 
-proc long_rshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject =
+proc long_rshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
   let a_negative = a.negative()
   var
     remshift = remshift
@@ -137,9 +137,9 @@ proc long_rshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject 
   var newsize = oldsize - wordshift
 
   if newsize <= 0:
-    return newPyInt -int8(a_negative)
+    return newInt -int8(a_negative)
 
-  var z = newPyIntOfLenUninit(newsize)
+  var z = newIntOfLenUninit(newsize)
 
   let hishift = digitBits - remshift
 
@@ -175,7 +175,7 @@ proc long_rshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject 
   z.normalize()
   z
 
-proc long_lshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject =
+proc long_lshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
   let oldsize = a.digitCount
   var newsize = oldsize + wordshift
 
@@ -183,7 +183,7 @@ proc long_lshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject 
   if hasRemshift:
     inc newsize
 
-  var z = newPyIntOfLenUninit(newsize)
+  var z = newIntOfLenUninit(newsize)
   if a.negative:
     #assert(Py_REFCNT(z) == 1);
     z.flipSign()
@@ -207,9 +207,9 @@ proc long_lshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject 
 const ShiftMayOvf = int.high.BiggestUInt <= (BiggestUInt.high div digitBits)
 
 template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
-  proc sh*(a: PyIntObject, shiftby: BiggestUInt): PyIntObject =
+  proc sh*(a: IntObject, shiftby: BiggestUInt): IntObject =
     # long_lshift_int64
-    if a.sign == Zero: return pyIntZero
+    if a.sign == Zero: return intZero
     when ShiftMayOvf:
       if shiftby > BiggestUInt(int.high) * digitBits:
         doOnShiftbyOverflow
@@ -221,7 +221,7 @@ template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
     return implname(a, wordshift, remshift)
 
 
-  proc sh*(a, b: PyIntObject): PyIntObject =
+  proc sh*(a, b: IntObject): IntObject =
     if b.negative:
       raise newException(ValueError, "negative shift count")
     var overflow: IntSign
@@ -234,12 +234,12 @@ genShift `shl`, long_lshift1:
   tooManyShiftErr()
 
 genShift `shr`, long_rshift1:
-  if a.negative: return newPyInt -1
-  else: return pyIntZero
+  if a.negative: return newInt -1
+  else: return intZero
 
 when isMainModule:
   import ./ops
   let
-    a = newPyInt "0b10"
+    a = newInt "0b10"
   echo a shr 1
   echo a shr 2

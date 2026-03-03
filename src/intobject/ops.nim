@@ -23,10 +23,10 @@ type STwoDigit = SDigit
 
 const maxValue = TwoDigits(high(Digit)) + 1
 
-export pyIntZero, pyIntOne, pyIntTen
+export intZero, intOne, intTen
 
-using self: PyIntObject
-func fastExtract1(a: PyIntObject): SDigit =
+using self: IntObject
+func fastExtract1(a: IntObject): SDigit =
   # assert a.digits.len == 1
   result = SDigit a.digits[0]
   if a.negative:
@@ -41,13 +41,13 @@ template fastExtract(a, b){.dirty.} =
     assert b.digits.len == 1
 
 template genFast(op){.dirty.} =
-  proc `fast op`(a, b: PyIntObject; check: static[bool] = true): PyIntObject =
+  proc `fast op`(a, b: IntObject; check: static[bool] = true): IntObject =
     fastExtract a, b
-    newPyInt op(left, right)
+    newInt op(left, right)
 
-proc fast_div(a, b: PyIntObject; check: static[bool] = true): PyIntObject =
+proc fast_div(a, b: IntObject; check: static[bool] = true): IntObject =
   fastExtract a, b
-  newPyInt `div`(left, right)
+  newInt `div`(left, right)
 
 genFast floordiv
 genFast floormod
@@ -65,14 +65,14 @@ proc inplaceDivRem1(pout: var openArray[Digit], pin: openArray[Digit], size: int
 
   return Digit(remainder)
 
-proc divRem1(a: PyIntObject, n: Digit, remainder: var Digit): PyIntObject =
+proc divRem1(a: IntObject, n: Digit, remainder: var Digit): IntObject =
   ## Divide an integer by a single digit, returning both quotient and remainder
   ## The sign of a is ignored; n should not be zero.
   ## 
   ## the result's sign is always positive
   assert n > 0 and n < maxValue
   let size = a.digits.len
-  var quotient = newPyIntOfLen(size)
+  var quotient = newIntOfLen(size)
   remainder = inplaceDivRem1(quotient.digits, a.digits, size, n)
   quotient.normalize()
   return quotient
@@ -88,7 +88,7 @@ proc inplaceRem1(pin: openArray[Digit], size: int, n: TwoDigits): Digit =
 
   return Digit(rem)
 
-proc `mod`*(a: PyIntObject, n: TwoDigits): PyIntObject =
+proc `mod`*(a: IntObject, n: TwoDigits): IntObject =
   ## `rem1`
   ## Get the remainder of an integer divided by a single digit.
   ## The sign of `a` is ignored; `n` should not be zero.
@@ -99,7 +99,7 @@ proc `mod`*(a: PyIntObject, n: TwoDigits): PyIntObject =
   assert n > 0 and n <= maxValue - 1
   let size = a.digits.len
   let remainder = inplaceRem1(a.digits, size, n)
-  return newPyInt(remainder)
+  return newInt(remainder)
 
 template genMod(T){.dirty.} =
   type SomeUnsignedIntSmallerThanTwoDigits* = T
@@ -107,10 +107,10 @@ when digitBits > 16:
   genMod uint8|uint16|Digit
 else:
   genMod uint8|Digit
-proc `mod`*(a: PyIntObject, n: SomeUnsignedIntSmallerThanTwoDigits): PyIntObject = a mod TwoDigits(n)
+proc `mod`*(a: IntObject, n: SomeUnsignedIntSmallerThanTwoDigits): IntObject = a mod TwoDigits(n)
 
-proc tryRem(a, b: PyIntObject, prem: var PyIntObject): bool{.pyCFuncPragma.}
-proc tryFloorMod(v, w: PyIntObject, modRes: var PyIntObject): bool{.pyCFuncPragma.} =
+proc tryRem(a, b: IntObject, prem: var IntObject): bool{.pyCFuncPragma.}
+proc tryFloorMod(v, w: IntObject, modRes: var IntObject): bool{.pyCFuncPragma.} =
   ## `l_mod`
   ## Compute modulus: *modRes = v % w
   ## returns w != 0
@@ -135,56 +135,56 @@ template chkRaiseDivByZero(cond) =
   if not cond:
     retZeroDiv
 
-proc tryDivmod(v, w: PyIntObject, divRes, modRes: var PyIntObject): bool {.pyCFuncPragma.}
+proc tryDivmod(v, w: IntObject, divRes, modRes: var IntObject): bool {.pyCFuncPragma.}
   ## `l_divmod`
-proc tryDivrem(a, b: PyIntObject, pdiv, prem: var PyIntObject): bool{.pyCFuncPragma.}
+proc tryDivrem(a, b: IntObject, pdiv, prem: var IntObject): bool{.pyCFuncPragma.}
 
-template tryDiv(a, b: PyIntObject; result): bool =
+template tryDiv(a, b: IntObject; result): bool =
   if a.digits.len == 1 and b.digits.len == 1:
     return fast_div(a, b, off)
-  var unused: PyIntObject
+  var unused: IntObject
   tryDivrem(a, b, result, unused)
 
-template tryFloorDiv(a, b: PyIntObject; result): bool =
+template tryFloorDiv(a, b: IntObject; result): bool =
   ## `l_div`
   if a.digits.len == 1 and b.digits.len == 1:
     return fast_floor_div(a, b, off)
-  var unused: PyIntObject
+  var unused: IntObject
   tryDivmod(a, b, result, unused)
 
 # `long_div`
 template genDivOrMod(floorOp, pyFloorOp, op, pyOp){.dirty.} =
-  proc `floorOp NonZero`*(a, b: PyIntObject): PyIntObject =
+  proc `floorOp NonZero`*(a, b: IntObject): IntObject =
     ## Integer division
     ## 
     ## assuming b is non-zero
     let ret = `try floorOp`(a, b, result)
     assert ret
 
-  proc `floorOp`*(a, b: PyIntObject): PyIntObject{.pyCFuncPragma.} =
+  proc `floorOp`*(a, b: IntObject): IntObject{.pyCFuncPragma.} =
     ## .. note:: this raises DivByZeroDefect when b is zero
     chkRaiseDivByZero `try floorOp`(a, b, result)
 
-  proc pyFloorOp*(a, b: PyIntObject): PyIntObject =
+  proc pyFloorOp*(a, b: IntObject): IntObject =
     ## .. note:: this may raises DivByZeroDefect
-    var res: PyIntObject
+    var res: IntObject
     if `try floorOp`(a, b, res):
       return res
     retZeroDiv
   
-  proc pyOp*(a, b: PyIntObject): PyIntObject =
+  proc pyOp*(a, b: IntObject): IntObject =
     ## .. note:: this raises DivByZeroDefect when b is zero
     chkRaiseDivByZero op(a, b, result)
 
 genDivOrMod floordiv, `//`,  tryDiv, `div`
 genDivOrMod floormod, `%` ,  tryRem, `mod`
 
-proc divmodNonZero*(a, b: PyIntObject): tuple[d, m: PyIntObject] =
+proc divmodNonZero*(a, b: IntObject): tuple[d, m: IntObject] =
   ## export for builtins.divmod
   let ret = tryDivmod(a, b, result.d, result.m)
   assert ret
 
-proc divmod*(a, b: PyIntObject): tuple[d, m: PyIntObject] =
+proc divmod*(a, b: IntObject): tuple[d, m: IntObject] =
   ## .. note::
   ##   this is Python's `divmod`(get division and modulo),
   ##   ref `divrem`_ for Nim's std/math divmod
@@ -192,18 +192,18 @@ proc divmod*(a, b: PyIntObject): tuple[d, m: PyIntObject] =
   ## .. hint:: this raises DivByZeroDefect when b is zero
   chkRaiseDivByZero tryDivmod(a, b, result.d, result.m)
 
-proc xDivRem(v1, w1: PyIntObject, prem: var PyIntObject): PyIntObject =
+proc xDivRem(v1, w1: IntObject, prem: var IntObject): IntObject =
   ## `x_divrem`
   ## Perform unsigned integer division with remainder
-  var v, w, a: PyIntObject
+  var v, w, a: IntObject
   var sizeV = v1.digits.len
   var sizeW = w1.digits.len
   assert sizeV >= sizeW and sizeW >= 2
 
   # Allocate space for v and w
-  v = newPyIntSimple()
+  v = newIntSimple()
   v.digits.setLen(sizeV + 1)
-  w = newPyIntSimple()
+  w = newIntSimple()
   w.digits.setLen(sizeW)
 
   # Normalize: shift w1 left so its top digit is >= maxValue / 2
@@ -218,7 +218,7 @@ proc xDivRem(v1, w1: PyIntObject, prem: var PyIntObject): PyIntObject =
   # Quotient has at most `k = sizeV - sizeW` digits
   let k = sizeV - sizeW
   assert k >= 0
-  a = newPyIntSimple()
+  a = newIntSimple()
   a.digits.setLen(k)
 
   var v0 = v.digits
@@ -268,7 +268,7 @@ proc xDivRem(v1, w1: PyIntObject, prem: var PyIntObject): PyIntObject =
   prem = w
   return a
 
-proc tryRem(a, b: PyIntObject, prem: var PyIntObject): bool{.pyCFuncPragma.} =
+proc tryRem(a, b: IntObject, prem: var IntObject): bool{.pyCFuncPragma.} =
   ## `long_rem`
   ## Integer reminder.
   ## 
@@ -284,7 +284,7 @@ proc tryRem(a, b: PyIntObject, prem: var PyIntObject): bool{.pyCFuncPragma.} =
   if sizeA < sizeB or (
       sizeA == sizeB and a.digits[^1] < b.digits[^1]):
       # |a| < |b|
-    prem = newPyInt(a)
+    prem = newInt(a)
     return
 
   if sizeB == 1:
@@ -296,7 +296,7 @@ proc tryRem(a, b: PyIntObject, prem: var PyIntObject): bool{.pyCFuncPragma.} =
   if (a.sign == Negative) and not prem.zero():
     prem.setSignNegative()
 
-proc tryDivrem(a, b: PyIntObject, pdiv, prem: var PyIntObject): bool{.pyCFuncPragma.} =
+proc tryDivrem(a, b: IntObject, pdiv, prem: var IntObject): bool{.pyCFuncPragma.} =
   ## `long_divrem`
   ## Integer division with remainder
   ## 
@@ -312,14 +312,14 @@ proc tryDivrem(a, b: PyIntObject, pdiv, prem: var PyIntObject): bool{.pyCFuncPra
   if sizeA < sizeB or (
       sizeA == sizeB and a.digits[^1] < b.digits[^1]):
       # |a| < |b|
-    prem = newPyInt(a)
-    pdiv = pyIntZero
+    prem = newInt(a)
+    pdiv = intZero
     return
 
   if sizeB == 1:
     var remainder: Digit
     pdiv = divRem1(a, b.digits[0], remainder)
-    prem = newPyInt(remainder)
+    prem = newInt(remainder)
   else:
     pdiv = xDivRem(a, b, prem)
 
@@ -332,10 +332,10 @@ proc tryDivrem(a, b: PyIntObject, pdiv, prem: var PyIntObject): bool{.pyCFuncPra
   if (a.sign == Negative) and not prem.zero():
     prem.setSignNegative()
 
-proc divrem*(a, b: PyIntObject): tuple[d, r: PyIntObject] =
+proc divrem*(a, b: IntObject): tuple[d, r: IntObject] =
   chkRaiseDivByZero tryDivrem(a, b, result.d, result.r)
 
-proc tryDivmod(v, w: PyIntObject, divRes, modRes: var PyIntObject): bool{.pyCFuncPragma.} =
+proc tryDivmod(v, w: IntObject, divRes, modRes: var IntObject): bool{.pyCFuncPragma.} =
   ## Python's returns -1 on failure, which is only to be Memory Alloc failure
   ## where nim will just `SIGSEGV`
   ## 
@@ -355,15 +355,15 @@ proc tryDivmod(v, w: PyIntObject, divRes, modRes: var PyIntObject): bool{.pyCFun
   if (modRes.sign == Negative and w.sign == IntSign.Positive) or
      (modRes.sign == IntSign.Positive and w.sign == Negative):
     modRes = modRes + w
-    divRes = divRes - pyIntOne
+    divRes = divRes - intOne
 
 # a**b
-proc pow*(a, b: PyIntObject): PyIntObject =
+proc pow*(a, b: IntObject): IntObject =
   assert(not b.negative)
   if b.zero:
-    return pyIntOne
+    return intOne
   # we have checked b is not zero
-  let new_b = b.floorDivNonZero pyIntTwo
+  let new_b = b.floorDivNonZero intTwo
   let half_c = pow(a, new_b)
   if b.digits[0] mod 2 == 1:
     return half_c * half_c * a
@@ -372,16 +372,16 @@ proc pow*(a, b: PyIntObject): PyIntObject =
 
 
 #[
-proc newPyInt(i: int): PyIntObject =
+proc newInt(i: int): IntObject =
   var ii: int
   if i < 0:
-    result = newPyIntSimple()
+    result = newIntSimple()
     result.sign = Negative
     ii = (not i) + 1
   elif i == 0:
-    return pyIntZero
+    return intZero
   else:
-    result = newPyIntSimple()
+    result = newIntSimple()
     result.sign = Positive
     ii = i
   result.digits.add uint32(ii)
@@ -398,15 +398,15 @@ type IntObjectFromStrError*{.pure.} = enum
 const PyLongBaseSet* = {0, 2..36}
 
 template check_max_str_digits_with_msg(fail_cond; errMsg){.dirty.} =
-  bind PyInterpreterState_GET_long_state
-  let max_str_digits = PyInterpreterState_GET_long_state().max_str_digits
+  bind InterpreterState_GET_long_state
+  let max_str_digits = InterpreterState_GET_long_state().max_str_digits
   if max_str_digits > 0 and fail_cond:
     return IntObjectFromStrError.ExceedsMaxStrDigits #newValueError newPyAscii errMsg
 
-template fromStrAux[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: var int; base: uint8#[PyLongBase]#; checkThreshold: static[bool]; cToDigit) {.dirty.} =
+template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: uint8#[PyLongBase]#; checkThreshold: static[bool]; cToDigit) {.dirty.} =
   bind inplaceMul, inplaceAdd, normalize
   bind check_max_str_digits_with_msg, PY_INT_MAX_STR_DIGITS_THRESHOLD, MAX_STR_DIGITS_errMsg_to_int
-  result = newPyIntSimple()
+  result = newIntSimple()
   # assume s not empty
   result.digits.add 0
   var pre = '\0'
@@ -428,7 +428,7 @@ template fromStrAux[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: v
   normalize(result)
 
 template isspace(c: char): bool = c.isSpaceAscii
-template fromStrImpl[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: var int; base: var uint8#[PyLongBase]#; checkThreshold: static[bool]; errInvStr; cToDigit) {.dirty.} =
+template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: var uint8#[PyLongBase]#; checkThreshold: static[bool]; errInvStr; cToDigit) {.dirty.} =
   bind fromStrAux, isspace
   var sign: IntSign = Positive
   let L = s.len
@@ -459,7 +459,7 @@ template fromStrImpl[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: 
 
   var pre0 = cur == C'0'
 
-  res = pyIntZero
+  res = intZero
   if base == 0:
     if not pre0: base = 10
     else:
@@ -511,7 +511,7 @@ template fromStrImpl[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: 
     result.sign = sign
 
 
-proc fromStr*[C: char|Rune](s: openArray[C]; res: var PyIntObject): int =
+proc fromStr*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
   ## with `base = 0` (a.k.a. support prefix like 0b)
   ## and ignore `sys.flags.int_max_str_digits`
   template err = return
@@ -526,7 +526,7 @@ proc fromStr*[C: char|Rune](s: openArray[C]; res: var PyIntObject): int =
         d = cast[Digit](it)
       do: err
       d
-proc newPyIntFromStr*[C: char|Rune](s: openArray[C]): PyIntObject{.raises: [ValueError].} =
+proc newIntFromStr*[C: char|Rune](s: openArray[C]): IntObject{.raises: [ValueError].} =
   ## This ignores `sys.flags.int_max_str_digits`
   if s.fromStr(result) != s.len:
     raise newException(ValueError, "could not convert string to int")
@@ -548,30 +548,28 @@ template invBaseRet =
 template retInvIntCall(s, base){.dirty.} =
   return IntObjectFromStrError.InvalidLiteral
 
-proc fromStrWithValidBase*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
-  ## assert base is valid
-  assert base in PyLongBaseSet
+proc fromStrWithValidBase*[C: char](res: var IntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
   template err{.dirty.} =
     retInvIntCall s, base
   var base = cast[uint8](base)
   res.fromStrImpl(s, nParsed, base, true, err):
     Digit c.digitOr(base, err)
 
-proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int): IntObjectFromStrError =
+proc fromStr*[C: char](res: var IntObject; s: openArray[C]; nParsed: var int): IntObjectFromStrError =
   res.fromStrWithValidBase s, nParsed, 10
 
-proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
+proc fromStr*[C: char](res: var IntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
   if base != 0 and base < 2 or base > 36:
     invBaseRet
   res.fromStrWithValidBase(s, nParsed, base)
 
 #TODO:intobject miss
 # proc PyLong_FromString*[C: char](s: openArray[C]; nParsed: var int; base: int = 10): PyObject =
-#   var res: PyIntObject
+#   var res: IntObject
 #   result = res.fromStr(s, nParsed, base)
 #   if result.isNil: result = res
 
-proc format_binary*(a: PyIntObject, base: uint8, alternate: bool, v: var string): bool =
+proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): bool =
   ## long_format_binary
   ## 
   ## returns if not overflow
@@ -635,7 +633,7 @@ proc format_binary*(a: PyIntObject, base: uint8, alternate: bool, v: var string)
   WRITE_DIGITS p
   assert p == 0
 
-proc fill(result: var string, i: PyIntObject) =
+proc fill(result: var string, i: IntObject) =
   if i.zero:
     result = "0"
     return
@@ -651,17 +649,17 @@ proc fill(result: var string, i: PyIntObject) =
     result.add '-'
   result.reverse
 
-proc length_hint(a: PyIntObject): int = a.digitCount * PyLong_DECIMAL_SHIFT
+proc length_hint(a: IntObject): int = a.digitCount * PyLong_DECIMAL_SHIFT
 
 #TODO:intobject miss
 #method
-proc `$`*(i: PyIntObject): string{.raises: [].} =
+proc `$`*(i: IntObject): string{.raises: [].} =
   ## this ignores `sys.flags.int_max_str_digits`,
   ##  and may raises `OverflowDefect` if `i` contains too many digits
   result = newStringOfCap(i.length_hint)
   result.fill i
 
-proc toStringCheckThreshold*(a: PyIntObject, v: var string): bool{.raises: [].} =
+proc toStringCheckThreshold*(a: IntObject, v: var string): bool{.raises: [].} =
   ## this respects `sys.flags.int_max_str_digits`
   ## 
   ## returns if exceeds threshold, but does not raise, instead returns false
@@ -675,26 +673,26 @@ proc toStringCheckThreshold*(a: PyIntObject, v: var string): bool{.raises: [].} 
        max_str_digits div (3 * PyLong_SHIFT) <= ((size_a - 11) div 10)
     )
   #let size_hint = size_a.length_hint
-  #let scratch = newPyIntOfLen size_hint
+  #let scratch = newIntOfLen size_hint
   v = $a
   let strlen = v.len
   if strlen > PY_INT_MAX_STR_DIGITS_THRESHOLD:
     check_max_str_digits strlen - int(a.negative) > max_str_digits
 
-proc format*(i: PyIntObject, base: uint8, s: var string): bool =
+proc format*(i: IntObject, base: uint8, s: var string): bool =
   # `_PyLong_Format`
   # `s` is a `out` param
   if base == 10: toStringCheckThreshold(i, s)
   else: format_binary(i, base, true, s)
 
 
-proc newPyInt*[C: char](smallInt: C): PyIntObject =
-  newPyInt int smallInt  # TODO
+proc newInt*[C: char](smallInt: C): IntObject =
+  newInt int smallInt  # TODO
 
-proc newPyInt*[C: Rune|char](str: openArray[C]): PyIntObject = 
-  newPyIntFromStr(str)
+proc newInt*[C: Rune|char](str: openArray[C]): IntObject = 
+  newIntFromStr(str)
 
-proc newPyIntFromNormalFloat*(dval: float): PyIntObject =
+proc newIntFromNormalFloat*(dval: float): IntObject =
   ## `PyLong_FromDouble`, but assumes dval is normal (not inf or nan)
   #[
 	  Try to get out cheap if this fits in a long. When a finite value of real
@@ -717,7 +715,7 @@ proc newPyIntFromNormalFloat*(dval: float): PyIntObject =
 
   const int_max = float int.high.uint + 1
   if -int_max <= dval and dval <= int_max:
-    return newPyInt(int dval)
+    return newInt(int dval)
 
   var dval = dval
   var neg = false
@@ -731,7 +729,7 @@ proc newPyIntFromNormalFloat*(dval: float): PyIntObject =
   let expo1s = expo - 1
 
   let ndig = expo1s div PyLong_SHIFT + 1
-  var res = newPyIntOfLenUninit(ndig)
+  var res = newIntOfLenUninit(ndig)
 
   when not declared(ldexp) and not defined(js):
     proc ldexp(arg: cdouble, exp: cint): cdouble{.importc, header: "<math.h>".}
@@ -774,21 +772,21 @@ when isMainModule:
   echo a + a - a - a - a
   ]#
   #let a = fromStr("88888888888888")
-  let a = newPyInt("100000000000")
-  echo a.pow(pyIntTen)
+  let a = newInt("100000000000")
+  echo a.pow(intTen)
   echo a
-  #echo a * pyIntTen
-  #echo a.pow pyIntTen
+  #echo a * intTen
+  #echo a.pow intTen
   #let a = fromStr("100000000000")
   #echo a
   #echo a * fromStr("7") - a - a - a - a - a - a - a
-  #let b = newPyInt(2)
-  #echo pyIntTen
-  #echo -pyIntTen
+  #let b = newInt(2)
+  #echo intTen
+  #echo -intTen
   #echo a
   #echo int(a)
   #echo -int(a)
   #echo IntSign(-int(a))
-  #echo newPyInt(3).pow(pyIntTwo) - pyIntOne + pyIntTwo
+  #echo newInt(3).pow(intTwo) - intOne + intTwo
   #echo a div b
-  #echo a div b * newPyInt(2)
+  #echo a div b * newInt(2)

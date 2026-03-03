@@ -55,29 +55,29 @@ export Digit, TwoDigits, SDigit, digitBits, truncate,
 # declarePyType Int(tpToken):
 #TODO:intobject  ren to IntObject
 #TODO:intobject  make attr private
-type PyIntObject* = object
+type IntObject* = object
   #v: BigInt
   #v: int
   sign*: IntSign
   digits*: seq[Digit]
 
-proc isNil*(self: PyIntObject): bool {.inline.} = false
-proc newPyIntSimple*(): PyIntObject =
-  result = PyIntObject()
+proc isNil*(self: IntObject): bool {.inline.} = false
+proc newIntSimple*(): IntObject =
+  result = IntObject()
   result.sign = Zero
 
-#proc compatSign(op: PyIntObject): SDigit{.inline.} = cast[SDigit](op.sign)
+#proc compatSign(op: IntObject): SDigit{.inline.} = cast[SDigit](op.sign)
 # NOTE: CPython uses 0,1,2 for IntSign, so its `_PyLong_CompactSign` is `1 - sign`
 
-#proc newPyInt(i: Digit): PyIntObject
-proc newPyInt*(o: PyIntObject): PyIntObject =
+#proc newInt(i: Digit): IntObject
+proc newInt*(o: IntObject): IntObject =
   ## deep copy, returning a new object
-  result = newPyIntSimple()
+  result = newIntSimple()
   result.sign = o.sign
   result.digits = o.digits
 
-proc newPyInt*(i: Digit): PyIntObject =
-  result = newPyIntSimple()
+proc newInt*(i: Digit): IntObject =
+  result = newIntSimple()
   if i != 0:
     result.digits.add i
     result.sign = Positive
@@ -86,7 +86,7 @@ proc newPyInt*(i: Digit): PyIntObject =
     result.sign = Zero
 
 const sMaxValue = SDigit(high(Digit)) + 1
-func fill[I: SomeInteger](digits: var typeof(PyIntObject.digits), ui: I){.cdecl.} =
+func fill[I: SomeInteger](digits: var typeof(IntObject.digits), ui: I){.cdecl.} =
   var ui = ui
   while ui != 0:
     digits.add Digit(
@@ -95,8 +95,8 @@ func fill[I: SomeInteger](digits: var typeof(PyIntObject.digits), ui: I){.cdecl.
     )
     ui = ui shr digitBits
 
-proc newPyInt*[I: SomeSignedInt](i: I): PyIntObject =
-  result = newPyIntSimple()
+proc newInt*[I: SomeSignedInt](i: I): IntObject =
+  result = newIntSimple()
   result.digits.fill abs(i)
 
   if i < 0:
@@ -106,8 +106,8 @@ proc newPyInt*[I: SomeSignedInt](i: I): PyIntObject =
   else:
     result.sign = Positive
 
-proc newPyInt*[I: SomeUnsignedInt and not Digit](i: I): PyIntObject =
-  result = newPyIntSimple()
+proc newInt*[I: SomeUnsignedInt and not Digit](i: I): IntObject =
+  result = newIntSimple()
   if i == 0:
     result.sign = Zero
     return
@@ -118,11 +118,11 @@ const bigintErr = defined(js) and compileOption("jsBigInt64")
 when bigintErr:
   import std/hashes
 
-proc newPyIntFromPtr*(p: pointer): PyIntObject =
+proc newIntFromPtr*(p: pointer): IntObject =
   ## `PyLong_FromVoidPtr`
-  newPyInt(
+  newInt(
     when bigintErr: hash(p)
     else: cast[int](p)
   )
-proc newPyIntFromPtr*[I: ref | ptr](i: I): PyIntObject =
-  newPyIntFromPtr cast[pointer](i)
+proc newIntFromPtr*[I: ref | ptr](i: I): IntObject =
+  newIntFromPtr cast[pointer](i)

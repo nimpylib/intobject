@@ -18,7 +18,7 @@ else:
   let EXP2_DBL_MANT_DIG = ldexp(1.0, DBL_MANT_DIG)
 
 const PyLong_BASE = 1i64 shl PyLong_SHIFT
-proc frexp*(a: PyIntObject, e: var int64): float =
+proc frexp*(a: IntObject, e: var int64): float =
   ## `_PyLong_Frexp`
   var x_size: int
   # See below for why x_digits is always large enough.

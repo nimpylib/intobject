@@ -15,7 +15,7 @@ type Py_long_state = object
 
 var state{.threadVar.}: Py_long_state
 
-proc PyInterpreterState_GET_long_state*(): var Py_long_state{.inline.} =
+proc InterpreterState_GET_long_state*(): var Py_long_state{.inline.} =
   ## `_PyInterpreterState_GET->long_state`
   state
 

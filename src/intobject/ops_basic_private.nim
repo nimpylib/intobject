@@ -3,7 +3,7 @@
 import ./decl
 template demote*(x: TwoDigits): Digit =
   Digit(x shr digitBits)
-proc inplaceAdd*(a: var PyIntObject, b: Digit) =
+proc inplaceAdd*(a: var IntObject, b: Digit) =
   var carry = TwoDigits(b)
   for i in 0..<a.digits.len:
     if carry == 0:
@@ -24,6 +24,6 @@ template doMulImpl*(result, b; loopVar, loopIter, src, dst) =
     carry = carry.demote
   if 0'u64 < carry:
     result.digits.add truncate(carry)
-proc inplaceMul*(a: var PyIntObject, b: Digit|uint8) =
+proc inplaceMul*(a: var IntObject, b: Digit|uint8) =
   # assuming all Natural
   a.doMulImpl(b, d, a.digits.mitems, d, d)

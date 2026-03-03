@@ -1,8 +1,8 @@
 
 import ./bit_length_util
 import ./decl
-proc digitCount*(v: PyIntObject): int{.inline.} = v.digits.len  ## `_PyLong_DigitCount`
-proc numbits*(v: PyIntObject): int64 =
+proc digitCount*(v: IntObject): int{.inline.} = v.digits.len  ## `_PyLong_DigitCount`
+proc numbits*(v: IntObject): int64 =
   ## `_PyLong_NumBits`
   assert not v.isNil
   let ndigits = v.digitCount
@@ -13,14 +13,14 @@ proc numbits*(v: PyIntObject): int64 =
     result = ndigits1 * digitBits
     result += bit_length(msd)
 
-proc bit_length*(self: PyIntObject): PyIntObject =
+proc bit_length*(self: IntObject): IntObject =
   ## int_bit_length_impl
   let nbits = self.numbits
   assert nbits >= 0
-  return newPyInt nbits
+  return newInt nbits
 
-proc bit_count*(self: PyIntObject): PyIntObject =
+proc bit_count*(self: IntObject): IntObject =
   var res = int64 0
   for d in self.digits:
     res += popcount(d)
-  newPyInt res
+  newInt res

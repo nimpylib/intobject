@@ -2,14 +2,15 @@
 # import ../numobjects_comm
 import ./[decl, utils, signbit, ops_basic_private]
 
-template pyIntZero*: PyIntObject = newPyInt(0)
-template pyIntOne*: PyIntObject = newPyInt(1)
-template pyIntTwo*: PyIntObject = newPyInt(2)
-template pyIntTen*: PyIntObject = newPyInt(10)
+const
+  intZero* = newInt(0)
+  intOne*  = newInt(1)
+  intTwo*  = newInt(2)
+  intTen*  = newInt(10)
 
-using self: PyIntObject
+using self: IntObject
 # assuming all positive, return a - b
-proc doCompare(a, b: PyIntObject): IntSign {. cdecl .} =
+proc doCompare(a, b: IntObject): IntSign {. cdecl .} =
   if a.digits.len < b.digits.len:
     return Negative
   if a.digits.len > b.digits.len:
@@ -26,11 +27,11 @@ proc doCompare(a, b: PyIntObject): IntSign {. cdecl .} =
   return Zero
 
 # assuming all positive, return a + b
-proc doAdd(a, b: PyIntObject): PyIntObject =
+proc doAdd(a, b: IntObject): IntObject =
   if a.digits.len < b.digits.len:
     return doAdd(b, a)
   var carry = TwoDigits(0)
-  result = newPyIntSimple()
+  result = newIntSimple()
   for i in 0..<a.digits.len:
     if i < b.digits.len:
       # can't use inplace-add, gh-10697
@@ -42,8 +43,8 @@ proc doAdd(a, b: PyIntObject): PyIntObject =
     result.digits.add truncate(carry)
 
 # assuming all positive, return a - b
-proc doSub(a, b: PyIntObject): PyIntObject =
-  result = newPyIntSimple()
+proc doSub(a, b: IntObject): IntObject =
+  result = newIntSimple()
   result.sign = Positive
 
   var borrow = false #Digit(0)
@@ -79,15 +80,15 @@ proc doSub(a, b: PyIntObject): PyIntObject =
     result.sign = Zero
 
 # assuming all Natural, return a * b
-proc doMul(a: PyIntObject, b: Digit): PyIntObject =
-  result = newPyIntOfLen(a.digits.len)
+proc doMul(a: IntObject, b: Digit): IntObject =
+  result = newIntOfLen(a.digits.len)
   result.doMulImpl(b, i, 0..<a.digits.len, a.digits[i], result.digits[i])
 
 
-proc doMul(a, b: PyIntObject): PyIntObject =
+proc doMul(a, b: IntObject): IntObject =
   if a.digits.len < b.digits.len:
     return doMul(b, a)
-  var ints: seq[PyIntObject]
+  var ints: seq[IntObject]
   for i, db in b.digits:
     var c = a.doMul(db)
     let zeros = newSeq[Digit](i)
@@ -97,7 +98,7 @@ proc doMul(a, b: PyIntObject): PyIntObject =
   for intObj in ints[1..^1]:
     result = result.doAdd(intObj)
 
-proc `<`*(a, b: PyIntObject): bool =
+proc `<`*(a, b: IntObject): bool =
   case a.sign
   of Negative:
     case b.sign
@@ -114,12 +115,12 @@ proc `<`*(a, b: PyIntObject): bool =
     of Positive:
       return doCompare(a, b) == Negative
 
-proc `==`*(a, b: PyIntObject): bool =
+proc `==`*(a, b: IntObject): bool =
   if a.sign != b.sign:
     return false
   return doCompare(a, b) == Zero
 
-proc `+`*(a, b: PyIntObject): PyIntObject =
+proc `+`*(a, b: IntObject): IntObject =
   case a.sign
   of Negative:
     case b.sign
@@ -144,7 +145,7 @@ proc `+`*(a, b: PyIntObject): PyIntObject =
       result.sign = Positive
       return
 
-proc `-`*(a, b: PyIntObject): PyIntObject =
+proc `-`*(a, b: IntObject): IntObject =
   case a.sign
   of Negative:
     case b.sign
@@ -180,16 +181,16 @@ proc `-`*(a, b: PyIntObject): PyIntObject =
       return doSub(a, b)
 
 
-proc `-`*(a: PyIntObject): PyIntObject =
+proc `-`*(a: IntObject): IntObject =
   result = a.copy()
   result.sign = a.sign
   result.flipSign
 
-proc abs*(self): PyIntObject =
+proc abs*(self): IntObject =
   if self.negative: -self
   else: self
 
-proc `*`*(a, b: PyIntObject): PyIntObject =
+proc `*`*(a, b: IntObject): IntObject =
   case a.sign
   of Negative:
     case b.sign
@@ -198,13 +199,13 @@ proc `*`*(a, b: PyIntObject): PyIntObject =
       result.sign = Positive
       return
     of Zero:
-      return pyIntZero
+      return intZero
     of Positive:
       result = doMul(a, b)
       result.sign = Negative
       return
   of Zero:
-    return pyIntZero
+    return intZero
   of Positive:
     case b.sign
     of Negative:
@@ -212,7 +213,7 @@ proc `*`*(a, b: PyIntObject): PyIntObject =
       result.sign = Negative
       return
     of Zero:
-      return pyIntZero
+      return intZero
     of Positive:
       result = doMul(a, b)
       result.sign = Positive

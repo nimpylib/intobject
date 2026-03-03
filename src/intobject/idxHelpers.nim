@@ -2,7 +2,7 @@
 
 import ./[decl, ops]
 # used in list and tuple
-template getIndex*(obj: PyIntObject, size: int, includeSize: static[bool] = false): int =
+template getIndex*(obj: IntObject, size: int, includeSize: static[bool] = false): int =
   var idx = toIntOrRetOF(obj)
   if idx < 0:
     idx = size + idx
@@ -19,6 +19,6 @@ proc getClampedIndex*(idx: int, size: int): int =
   elif size <= result: result = size
 
 
-template getClampedIndex*(obj: PyIntObject, size: int): int =
+template getClampedIndex*(obj: IntObject, size: int): int =
   ## like `getIndex`_ but clamping result in `0..<size`
   getClampedIndex obj.toIntOrRetOF, size
