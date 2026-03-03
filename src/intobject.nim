@@ -1,5 +1,5 @@
-import ./intobject/[decl, frexp, signbit,
-  decl, ops_imp_warn, idxHelpers, bit_length, int_bytes
+import ./intobject/[frexp, signbit, ops, ops_mix_nim, ops_bitwise, ops_toint,
+  decl, idxHelpers, bit_length, int_bytes
 ]
-export decl, frexp, signbit,
-  decl, ops_imp_warn, idxHelpers, bit_length, int_bytes
+export frexp, signbit, ops, ops_mix_nim, ops_bitwise, ops_toint,
+  decl, idxHelpers, bit_length, int_bytes

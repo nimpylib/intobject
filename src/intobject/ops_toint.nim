@@ -1,12 +1,12 @@
 
 import std/hashes
 import std/typetraits
-import ../numobjects_comm
-export intobject_decl except Digit, TwoDigits, SDigit, digitBits, truncate,
- IntSign
+import ./signbit
 import ./[
   decl, bit_length,
 ]
+export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
+ IntSign
 export bit_length, signbit, decl
 import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
@@ -30,7 +30,7 @@ template PY_ABS_INT_MIN(T): untyped = cast[T.toUnsigned](T.low) ## \
 
 type PossibleBiggestDigit = uint32
 static: assert digitBits <= 8 * sizeof PossibleBiggestDigit
-func absToUInt*[U: uint32|uint64|BiggestUInt](pyInt: PyIntObject, x: var U): bool{.cdecl.} =
+func absToUInt*[U: uint32|uint64|BiggestUInt|uint](pyInt: PyIntObject, x: var U): bool{.cdecl.} =
   ## EXT. unstable.
   ##
   ## ignore signbit.
@@ -46,7 +46,7 @@ func absToUInt*[U: uint32|uint64|BiggestUInt](pyInt: PyIntObject, x: var U): boo
       return
   return true
 
-func absToUInt*[U: uint|uint8|uint16](pyInt: PyIntObject, x: var U): bool{.cdecl.} =
+func absToUInt*[U: uint8|uint16](pyInt: PyIntObject, x: var U): bool{.cdecl.} =
   var t: PossibleBiggestDigit
   if not absToUInt(pyInt, t): return
   if t > PossibleBiggestDigit U.high: return
@@ -85,7 +85,7 @@ proc toSomeUnsignedInt*[U: SomeUnsignedInt](pyInt: PyIntObject, overflow: var In
   ## like `toSomeSignedInt`<#toInt,PyIntObject,IntSign>`_ but for `uint`
   overflow = if pyInt.negative: Negative
   elif pyInt.absToUInt(result): Zero
-  else: Positive
+  else: IntSign.Positive
 proc toUInt*(pyInt: PyIntObject, overflow: var IntSign): uint =
   ## like `toInt`<#toInt,PyIntObject,IntSign>`_ but for `uint`
   toSomeUnsignedInt[uint](pyInt, overflow)
@@ -101,23 +101,24 @@ proc toUInt*(pyInt: PyIntObject, res: var uint): bool =
   if pyInt.negative: false
   else: pyInt.absToUInt(res)
 
-proc PyInt_OverflowCType*(ctypeName: string): PyOverflowErrorObject =
-  ## EXT.
-  ## used to construct OverflowError of `PyLong_As<ctypeName>`
-  ## So no need to call `PyLong_AsXxx` but `toSomeXxInt`
-  return newOverflowError(
-      newPyAscii "Python int too large to convert to C " & ctypeName)
+#TODO:intobject miss
+# proc PyInt_OverflowCType*(ctypeName: string): PyOverflowErrorObject =
+#   ## EXT.
+#   ## used to construct OverflowError of `PyLong_As<ctypeName>`
+#   ## So no need to call `PyLong_AsXxx` but `toSomeXxInt`
+#   return newOverflowError(
+#       newPyAscii "Python int too large to convert to C " & ctypeName)
 
-proc PyLong_AsSsize_t*(vv: PyIntObject, res: var int): PyOverflowErrorObject =
-  ## returns nil if not overflow
-  if not toInt(vv, res):
-    return PyInt_OverflowCType"ssize_t"
+# proc PyLong_AsSsize_t*(vv: PyIntObject, res: var int): PyOverflowErrorObject =
+#   ## returns nil if not overflow
+#   if not toInt(vv, res):
+#     return PyInt_OverflowCType"ssize_t"
 
-proc PyLong_AsSize_t*(pyInt: PyIntObject, res: var uint): PyOverflowErrorObject =
-  if pyInt.negative:
-    newOverflowError(newPyAscii"can't convert negative value to unsigned int")
-  elif pyInt.absToUInt res: nil
-  else: PyInt_OverflowCType"size_t"
+# proc PyLong_AsSize_t*(pyInt: PyIntObject, res: var uint): PyOverflowErrorObject =
+#   if pyInt.negative:
+#     newOverflowError(newPyAscii"can't convert negative value to unsigned int")
+#   elif pyInt.absToUInt res: nil
+#   else: PyInt_OverflowCType"size_t"
 
 proc asLongAndOverflow*(vv: PyIntObject, ovlf: var bool): int{.inline.} =
   ## PyLong_AsLongAndOverflow
@@ -131,12 +132,13 @@ template toIntOrRetOF*(vv: PyIntObject): int =
   if not ret.isNil: return ret
   i
 
-template genLongAs(c, n){.dirty.} =
-  proc `PyLong_As c`*(v: PyObject, res: var n): PyBaseErrorObject =
-    if not v.ofPyIntObject:
-      res = cast[n](-1)
-      return newTypeError newPyAscii"an integer is required"
-    `PyLong_As c`(PyIntObject v, res)
+#TODO:intobject miss
+# template genLongAs(c, n){.dirty.} =
+#   proc `PyLong_As c`*(v: PyObject, res: var n): PyBaseErrorObject =
+#     if not v.ofPyIntObject:
+#       res = cast[n](-1)
+#       return newTypeError newPyAscii"an integer is required"
+#     `PyLong_As c`(PyIntObject v, res)
 
-genLongAs Ssize_t, int
-genLongAs Size_t, uint
+# genLongAs Ssize_t, int
+# genLongAs Size_t, uint

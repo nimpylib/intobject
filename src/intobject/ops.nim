@@ -1,11 +1,9 @@
-import tables
-import algorithm
-import macros
-import strutils
-import math
-
-import ../numobjects_comm
-export intobject_decl except Digit, TwoDigits, SDigit, digitBits, truncate,
+import std/[
+  tables, algorithm, macros, strutils, math]
+from std/unicode import Rune
+# import ../numobjects_comm
+import ./decl
+export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
 import ./[
   bit_length, bit_length_util, shift, signbit,
@@ -13,11 +11,13 @@ import ./[
   ops_basic_private, ops_basic_arith, ops_toint
 ]
 export bit_length, signbit, ops_basic_arith, ops_toint
-import ../../stringobject/strformat
-import ../../../Modules/unicodedata/[decimal, space]
-from ../../../Utils/utils import unreachable
-import ../../../Include/internal/pycore_int
+# import ../../stringobject/strformat
+# import ../../../Modules/unicodedata/[decimal, space]
+# from ../../../Utils/utils import unreachable
+import ./private/utils
+import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
+{.pragma: pyCFuncPragma, raises: [].} 
 
 type STwoDigit = SDigit
 
@@ -72,7 +72,7 @@ proc divRem1(a: PyIntObject, n: Digit, remainder: var Digit): PyIntObject =
   ## the result's sign is always positive
   assert n > 0 and n < maxValue
   let size = a.digits.len
-  let quotient = newPyIntOfLen(size)
+  var quotient = newPyIntOfLen(size)
   remainder = inplaceDivRem1(quotient.digits, a.digits, size, n)
   quotient.normalize()
   return quotient
@@ -102,11 +102,12 @@ proc `mod`*(a: PyIntObject, n: TwoDigits): PyIntObject =
   return newPyInt(remainder)
 
 template genMod(T){.dirty.} =
-  proc `mod`*(a: PyIntObject, n: T): PyIntObject = a mod Digit(n)
+  type SomeUnsignedIntSmallerThanTwoDigits* = T
 when digitBits > 16:
   genMod uint8|uint16|Digit
 else:
   genMod uint8|Digit
+proc `mod`*(a: PyIntObject, n: SomeUnsignedIntSmallerThanTwoDigits): PyIntObject = a mod TwoDigits(n)
 
 proc tryRem(a, b: PyIntObject, prem: var PyIntObject): bool{.pyCFuncPragma.}
 proc tryFloorMod(v, w: PyIntObject, modRes: var PyIntObject): bool{.pyCFuncPragma.} =
@@ -122,14 +123,17 @@ proc tryFloorMod(v, w: PyIntObject, modRes: var PyIntObject): bool{.pyCFuncPragm
     return
 
   # Adjust signs if necessary
-  if (modRes.sign == Negative and w.sign == Positive) or
-     (modRes.sign == Positive and w.sign == Negative):
+  if (modRes.sign == Negative and w.sign == IntSign.Positive) or
+     (modRes.sign == IntSign.Positive and w.sign == Negative):
     modRes = modRes + w
 
 
+template retZeroDiv =
+  raise newException(DivByZeroDefect, "division by zero")
+
 template chkRaiseDivByZero(cond) =
   if not cond:
-    raise newException(DivByZeroDefect, "division by zero")
+    retZeroDiv
 
 proc tryDivmod(v, w: PyIntObject, divRes, modRes: var PyIntObject): bool {.pyCFuncPragma.}
   ## `l_divmod`
@@ -158,18 +162,18 @@ template genDivOrMod(floorOp, pyFloorOp, op, pyOp){.dirty.} =
     assert ret
 
   proc `floorOp`*(a, b: PyIntObject): PyIntObject{.pyCFuncPragma.} =
-    ## .. note:: this raises ZeroDivisionDefect when b is zero
+    ## .. note:: this raises DivByZeroDefect when b is zero
     chkRaiseDivByZero `try floorOp`(a, b, result)
 
-  proc pyFloorOp*(a, b: PyIntObject): PyObject{.pyCFuncPragma.} =
-    ## .. note:: this may returns ZeroDivisionError
+  proc pyFloorOp*(a, b: PyIntObject): PyIntObject =
+    ## .. note:: this may raises DivByZeroDefect
     var res: PyIntObject
     if `try floorOp`(a, b, res):
       return res
     retZeroDiv
   
   proc pyOp*(a, b: PyIntObject): PyIntObject =
-    ## .. note:: this raises ZeroDivisionDefect when b is zero
+    ## .. note:: this raises DivByZeroDefect when b is zero
     chkRaiseDivByZero op(a, b, result)
 
 genDivOrMod floordiv, `//`,  tryDiv, `div`
@@ -185,7 +189,7 @@ proc divmod*(a, b: PyIntObject): tuple[d, m: PyIntObject] =
   ##   this is Python's `divmod`(get division and modulo),
   ##   ref `divrem`_ for Nim's std/math divmod
   ##
-  ## .. hint:: this raises ZeroDivisionDefect when b is zero
+  ## .. hint:: this raises DivByZeroDefect when b is zero
   chkRaiseDivByZero tryDivmod(a, b, result.d, result.m)
 
 proc xDivRem(v1, w1: PyIntObject, prem: var PyIntObject): PyIntObject =
@@ -348,8 +352,8 @@ proc tryDivmod(v, w: PyIntObject, divRes, modRes: var PyIntObject): bool{.pyCFun
   if not tryDivrem(v, w, divRes, modRes): return false
 
   # Adjust signs if necessary
-  if (modRes.sign == Negative and w.sign == Positive) or
-     (modRes.sign == Positive and w.sign == Negative):
+  if (modRes.sign == Negative and w.sign == IntSign.Positive) or
+     (modRes.sign == IntSign.Positive and w.sign == Negative):
     modRes = modRes + w
     divRes = divRes - pyIntOne
 
@@ -384,13 +388,20 @@ proc newPyInt(i: int): PyIntObject =
   result.digits.add uint32(ii shr 32)
   result.normalize
 ]#
+
+type IntObjectFromStrError*{.pure.} = enum
+  Ok
+  InvalidBase = "int() arg 2 must be >= 2 and <= 36"
+  InvalidLiteral = "invalid literal for int() with base"
+  ExceedsMaxStrDigits = "exceeds maximum string digits allowed in int() conversion"
+
 const PyLongBaseSet* = {0, 2..36}
 
 template check_max_str_digits_with_msg(fail_cond; errMsg){.dirty.} =
   bind PyInterpreterState_GET_long_state
   let max_str_digits = PyInterpreterState_GET_long_state().max_str_digits
   if max_str_digits > 0 and fail_cond:
-    return newValueError newPyAscii errMsg
+    return IntObjectFromStrError.ExceedsMaxStrDigits #newValueError newPyAscii errMsg
 
 template fromStrAux[C: char|Rune](result: var PyIntObject; s: openArray[C]; i: var int; base: uint8#[PyLongBase]#; checkThreshold: static[bool]; cToDigit) {.dirty.} =
   bind inplaceMul, inplaceAdd, normalize
@@ -515,49 +526,55 @@ proc fromStr*[C: char|Rune](s: openArray[C]; res: var PyIntObject): int =
         d = cast[Digit](it)
       do: err
       d
-proc fromStr*[C: char|Rune](s: openArray[C]): PyIntObject{.raises: [ValueError].} =
+proc newPyIntFromStr*[C: char|Rune](s: openArray[C]): PyIntObject{.raises: [ValueError].} =
   ## This ignores `sys.flags.int_max_str_digits`
   if s.fromStr(result) != s.len:
     raise newException(ValueError, "could not convert string to int")
 
 
 template invBaseRet =
-  return newValueError newPyAscii"int() arg 2 must be >= 2 and <= 36"
+  return IntObjectFromStrError.InvalidBase
 
-proc retInvIntCallImpl(strObj: PyObject, base: SomeInteger): PyObject{.inline.} =
-  newPyStr&"invalid literal for int() with base {base}: {strObj:.200R}"
+#TODO:intobject miss
+# proc retInvIntCallImpl(strObj: string; base: SomeInteger): string{.inline.} =
+#   newPyStr&"invalid literal for int() with base {base}: {strObj:.200R}"
 
-template retInvIntCall*(strObj: PyObject, base: SomeInteger){.dirty.} =
-  ## inner
-  bind retInvIntCallImpl
-  let s = retInvIntCallImpl(strObj, base)
-  retIfExc s
-  return newValueError PyStrObject s
+# template retInvIntCall*(strObj: string, base: SomeInteger){.dirty.} =
+#   ## inner
+#   bind retInvIntCallImpl
+#   let s = retInvIntCallImpl(strObj, base)
+#   retIfExc s
+#   return newValueError PyStrObject s
+template retInvIntCall(s, base){.dirty.} =
+  return IntObjectFromStrError.InvalidLiteral
 
-proc fromStrWithValidBase[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): PyBaseErrorObject =
+proc fromStrWithValidBase*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
+  ## assert base is valid
+  assert base in PyLongBaseSet
   template err{.dirty.} =
-    let strObj = newPyStr(s)
-    retIfExc PyObject strObj
-    retInvIntCall strObj, base
+    retInvIntCall s, base
   var base = cast[uint8](base)
   res.fromStrImpl(s, nParsed, base, true, err):
     Digit c.digitOr(base, err)
 
-proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int): PyBaseErrorObject =
+proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int): IntObjectFromStrError =
   res.fromStrWithValidBase s, nParsed, 10
 
-proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): PyBaseErrorObject =
+proc fromStr*[C: char](res: var PyIntObject; s: openArray[C]; nParsed: var int; base: int): IntObjectFromStrError =
   if base != 0 and base < 2 or base > 36:
     invBaseRet
   res.fromStrWithValidBase(s, nParsed, base)
 
-proc PyLong_FromString*[C: char](s: openArray[C]; nParsed: var int; base: int = 10): PyObject =
-  var res: PyIntObject
-  result = res.fromStr(s, nParsed, base)
-  if result.isNil: result = res
+#TODO:intobject miss
+# proc PyLong_FromString*[C: char](s: openArray[C]; nParsed: var int; base: int = 10): PyObject =
+#   var res: PyIntObject
+#   result = res.fromStr(s, nParsed, base)
+#   if result.isNil: result = res
 
-proc format_binary*(a: PyIntObject, base: uint8, alternate: bool, v: var string): PyBaseErrorObject =
+proc format_binary*(a: PyIntObject, base: uint8, alternate: bool, v: var string): bool =
   ## long_format_binary
+  ## 
+  ## returns if not overflow
   assert base in {2u8, 8, 16}
 
   let
@@ -572,11 +589,11 @@ proc format_binary*(a: PyIntObject, base: uint8, alternate: bool, v: var string)
   var sz: int
   if size_a == 0:
     v = "0"
-    return
+    return true
   else:
     # Ensure overflow doesn't occur during computation of sz.
     if size_a > int.high - 3 div PyLong_SHIFT:
-      return newOverflowError newPyAscii"int too large to format"
+      return #newOverflowError newPyAscii"int too large to format"
     {.push overflowChecks: off.}
     let size_a_in_bits = (high_a) * PyLong_SHIFT + bit_length(a.digits[high_a])
     # Allow 1 character for a '-' sign.
@@ -635,30 +652,36 @@ proc fill(result: var string, i: PyIntObject) =
   result.reverse
 
 proc length_hint(a: PyIntObject): int = a.digitCount * PyLong_DECIMAL_SHIFT
-method `$`*(i: PyIntObject): string{.raises: [].} =
+
+#TODO:intobject miss
+#method
+proc `$`*(i: PyIntObject): string{.raises: [].} =
   ## this ignores `sys.flags.int_max_str_digits`,
   ##  and may raises `OverflowDefect` if `i` contains too many digits
   result = newStringOfCap(i.length_hint)
   result.fill i
 
-proc toStringCheckThreshold*(a: PyIntObject, v: var string): PyBaseErrorObject{.raises: [].} =
+proc toStringCheckThreshold*(a: PyIntObject, v: var string): bool{.raises: [].} =
   ## this respects `sys.flags.int_max_str_digits`
+  ## 
+  ## returns if exceeds threshold, but does not raise, instead returns false
+  result = true
   template check_max_str_digits(fail_cond){.dirty.} =
-    check_max_str_digits_with_msg fail_cond, MAX_STR_DIGITS_errMsg_to_str(max_str_digits)
+    # check_max_str_digits_with_msg fail_cond, MAX_STR_DIGITS_errMsg_to_str(max_str_digits)
+    return false
   let size_a = a.digitCount
   if size_a >= 10 * PY_INT_MAX_STR_DIGITS_THRESHOLD div (3 * PyLong_SHIFT) + 2:
     check_max_str_digits(
        max_str_digits div (3 * PyLong_SHIFT) <= ((size_a - 11) div 10)
     )
-  let negative = a.negative
   #let size_hint = size_a.length_hint
   #let scratch = newPyIntOfLen size_hint
   v = $a
   let strlen = v.len
   if strlen > PY_INT_MAX_STR_DIGITS_THRESHOLD:
-    check_max_str_digits strlen - int(negative) > max_str_digits
+    check_max_str_digits strlen - int(a.negative) > max_str_digits
 
-proc format*(i: PyIntObject, base: uint8, s: var string): PyBaseErrorObject =
+proc format*(i: PyIntObject, base: uint8, s: var string): bool =
   # `_PyLong_Format`
   # `s` is a `out` param
   if base == 10: toStringCheckThreshold(i, s)
@@ -669,10 +692,10 @@ proc newPyInt*[C: char](smallInt: C): PyIntObject =
   newPyInt int smallInt  # TODO
 
 proc newPyInt*[C: Rune|char](str: openArray[C]): PyIntObject = 
-  fromStr(str)
+  newPyIntFromStr(str)
 
-proc newPyInt*(dval: float): PyObject =
-  ## `PyLong_FromDouble`
+proc newPyIntFromNormalFloat*(dval: float): PyIntObject =
+  ## `PyLong_FromDouble`, but assumes dval is normal (not inf or nan)
   #[
 	  Try to get out cheap if this fits in a long. When a finite value of real
     floating type is converted to an integer type, the value is truncated
@@ -684,12 +707,13 @@ proc newPyInt*(dval: float): PyObject =
     as double exactly (assuming FLT_RADIX is 2 or 16), so for simplicity
     check against (-(LONG_MAX + 1), LONG_MAX + 1).
 	]#
-  case dval.classify
-  of fcInf, fcNegInf:
-    return newOverflowError(newPyAscii"cannot convert float infinity to integer")
-  of fcNan:
-    return newValueError(newPyAscii"cannot convert float NaN to integer")
-  else: discard
+  # case dval.classify
+  # of fcInf, fcNegInf:
+  #   return newOverflowError(newPyAscii"cannot convert float infinity to integer")
+  # of fcNan:
+  #   return newValueError(newPyAscii"cannot convert float NaN to integer")
+  # else: discard
+  assert dval.classify not_in {fcInf, fcNegInf, fcNan}
 
   const int_max = float int.high.uint + 1
   if -int_max <= dval and dval <= int_max:
@@ -707,7 +731,7 @@ proc newPyInt*(dval: float): PyObject =
   let expo1s = expo - 1
 
   let ndig = expo1s div PyLong_SHIFT + 1
-  let res = newPyIntOfLenUninit(ndig)
+  var res = newPyIntOfLenUninit(ndig)
 
   when not declared(ldexp) and not defined(js):
     proc ldexp(arg: cdouble, exp: cint): cdouble{.importc, header: "<math.h>".}

@@ -1,7 +1,9 @@
 
-import ../numobjects_comm
-import ../../../Utils/utils
-export intobject_decl except Digit, TwoDigits, SDigit, digitBits, truncate,
+# import ../numobjects_comm
+from std/math import divmod
+import ./private/utils
+import ./decl
+export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
 import ./[
   signbit,
@@ -12,9 +14,8 @@ import ./[ops_toint, ops_basic_arith,]
 using self: PyIntObject
 proc `not`*(self): PyIntObject =
   ## long_invert
-  let x = self + pyIntOne
-  x.negate
-  x
+  result = self + pyIntOne
+  result.negate
 
 
 const PyLong_MASK = Digit.high #(Digit(1) shl (sizeof(Digit)*8)) - 1
@@ -111,8 +112,9 @@ genBOp(`or`, '|')
 genBOp(`xor`, '^')
 
 
-proc tooManyShiftErr: PyOverflowErrorObject =
-  newOverflowError newPyAscii"too many digits in integer"
+template tooManyShiftErr =
+  # newOverflowError newPyAscii"too many digits in integer"
+  raise newException(OverflowDefect, "too many digits in integer")
 
 
 proc long_rshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject =
@@ -205,22 +207,23 @@ proc long_lshift1(a: PyIntObject, wordshift: int, remshift: uint8): PyIntObject 
 const ShiftMayOvf = int.high.BiggestUInt <= (BiggestUInt.high div digitBits)
 
 template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
-  proc sh*(a: PyIntObject, shiftby: BiggestUInt): PyObject =
+  proc sh*(a: PyIntObject, shiftby: BiggestUInt): PyIntObject =
     # long_lshift_int64
     if a.sign == Zero: return pyIntZero
     when ShiftMayOvf:
       if shiftby > BiggestUInt(int.high) * digitBits:
         doOnShiftbyOverflow
 
+    let tup = divmod(shiftby, digitBits)
     let
-      wordshift = cast[int](shiftby div digitBits) # we've checked above
-      remshift = cast[uint8](shiftby mod digitBits)
+      wordshift = int(tup[0])
+      remshift = cast[uint8](tup[1])
     return implname(a, wordshift, remshift)
 
 
-  proc sh*(a, b: PyIntObject): PyObject =
+  proc sh*(a, b: PyIntObject): PyIntObject =
     if b.negative:
-      return newValueError newPyAscii"negative shift count"
+      raise newException(ValueError, "negative shift count")
     var overflow: IntSign
     let shiftby = b.toSomeUnsignedInt[:BiggestUInt](overflow)
     if overflow != Zero:
@@ -228,7 +231,7 @@ template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
     sh(a, shiftby)
 
 genShift `shl`, long_lshift1:
-  return tooManyShiftErr()
+  tooManyShiftErr()
 
 genShift `shr`, long_rshift1:
   if a.negative: return newPyInt -1
@@ -238,4 +241,5 @@ when isMainModule:
   import ./ops
   let
     a = newPyInt "0b10"
+  echo a shr 1
   echo a shr 2

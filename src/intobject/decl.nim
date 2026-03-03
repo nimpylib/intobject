@@ -4,12 +4,10 @@ when defined(nimPreviewSlimSystem):
   import std/assertions
   export assertions
 
-# this is a **very slow** bigint lib.
 # Why reinvent such a bad wheel?
 # because we seriously need low level control on our modules
-# todo: make it a decent bigint module
 #
-import ../../pyobject
+# import ../../pyobject
 
 # js can't process 64-bit int although nim has this type for js
 when defined(js):
@@ -52,13 +50,21 @@ const
 # only export for ./intobject
 export Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign, PyLong_SHIFT, PyLong_DECIMAL_SHIFT, PyLong_DECIMAL_BASE
-const digitPyLong_DECIMAL_BASE* = Digit PyLong_DECIMAL_BASE
+# const digitPyLong_DECIMAL_BASE* = Digit PyLong_DECIMAL_BASE
 
-declarePyType Int(tpToken):
+# declarePyType Int(tpToken):
+#TODO:intobject  ren to IntObject
+#TODO:intobject  make attr private
+type PyIntObject* = object
   #v: BigInt
   #v: int
-  sign: IntSign
-  digits: seq[Digit]
+  sign*: IntSign
+  digits*: seq[Digit]
+
+proc isNil*(self: PyIntObject): bool {.inline.} = false
+proc newPyIntSimple*(): PyIntObject =
+  result = PyIntObject()
+  result.sign = Zero
 
 #proc compatSign(op: PyIntObject): SDigit{.inline.} = cast[SDigit](op.sign)
 # NOTE: CPython uses 0,1,2 for IntSign, so its `_PyLong_CompactSign` is `1 - sign`
