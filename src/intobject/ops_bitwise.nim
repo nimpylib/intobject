@@ -207,10 +207,10 @@ proc long_lshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
 const ShiftMayOvf = int.high.BiggestUInt <= (BiggestUInt.high div digitBits)
 
 template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
-  proc sh*(a: IntObject, shiftby: BiggestUInt): IntObject =
+  proc sh*(a: IntObject, shiftby: BiggestUInt, shiftMayOvf: static[bool] = ShiftMayOvf): IntObject =
     # long_lshift_int64
     if a.sign == Zero: return intZero
-    when ShiftMayOvf:
+    when shiftMayOvf:
       if shiftby > BiggestUInt(int.high) * digitBits:
         doOnShiftbyOverflow
 
