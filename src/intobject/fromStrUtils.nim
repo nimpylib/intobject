@@ -26,7 +26,7 @@ Table of digit values for 8-bit string -> integer conversion.
 'a' and 'A' map to 10, ..., 'z' and 'Z' map to 35.
 All other indices map to 37.
 Note that when converting a base B string, a char c is a legitimate
-base B digit iff PyLong_DigitValue[c] < B.
+base B digit iff `PyLong_DigitValue[c] < B`.
 ]##
 
 func isDigitOfBase*(c: char; base: uint8): bool = PyLong_DigitValue[c] < base
