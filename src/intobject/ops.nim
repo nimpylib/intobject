@@ -398,8 +398,8 @@ type IntObjectFromStrError*{.pure.} = enum
 const PyLongBaseSet* = {0, 2..36}
 
 template check_max_str_digits_with_msg(fail_cond; errMsg){.dirty.} =
-  bind InterpreterState_GET_long_state
-  let max_str_digits = InterpreterState_GET_long_state().max_str_digits
+  bind get_intobject_state
+  let max_str_digits = get_intobject_state().max_str_digits
   if max_str_digits > 0 and fail_cond:
     return IntObjectFromStrError.ExceedsMaxStrDigits #newValueError newPyAscii errMsg
 
@@ -513,7 +513,7 @@ template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: va
 
 proc fromStr*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
   ## with `base = 0` (a.k.a. support prefix like 0b)
-  ## and ignore `sys.flags.int_max_str_digits`
+  ## and ignore `get_intobject_state().max_str_digits`
   template err = return
   var base = 0u8
   res.fromStrImpl(s, result, base, false, err):
@@ -527,7 +527,7 @@ proc fromStr*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
       do: err
       d
 proc newIntFromStr*[C: char|Rune](s: openArray[C]): IntObject{.raises: [ValueError].} =
-  ## This ignores `sys.flags.int_max_str_digits`
+  ## This ignores `get_intobject_state().max_str_digits`
   if s.fromStr(result) != s.len:
     raise newException(ValueError, "could not convert string to int")
 
@@ -535,16 +535,6 @@ proc newIntFromStr*[C: char|Rune](s: openArray[C]): IntObject{.raises: [ValueErr
 template invBaseRet =
   return IntObjectFromStrError.InvalidBase
 
-#TODO:intobject miss
-# proc retInvIntCallImpl(strObj: string; base: SomeInteger): string{.inline.} =
-#   newPyStr&"invalid literal for int() with base {base}: {strObj:.200R}"
-
-# template retInvIntCall*(strObj: string, base: SomeInteger){.dirty.} =
-#   ## inner
-#   bind retInvIntCallImpl
-#   let s = retInvIntCallImpl(strObj, base)
-#   retIfExc s
-#   return newValueError PyStrObject s
 template retInvIntCall(s, base){.dirty.} =
   return IntObjectFromStrError.InvalidLiteral
 
@@ -562,12 +552,6 @@ proc fromStr*[C: char](res: var IntObject; s: openArray[C]; nParsed: var int; ba
   if base != 0 and base < 2 or base > 36:
     invBaseRet
   res.fromStrWithValidBase(s, nParsed, base)
-
-#TODO:intobject miss
-# proc PyLong_FromString*[C: char](s: openArray[C]; nParsed: var int; base: int = 10): PyObject =
-#   var res: IntObject
-#   result = res.fromStr(s, nParsed, base)
-#   if result.isNil: result = res
 
 proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): bool =
   ## long_format_binary
@@ -654,13 +638,13 @@ proc length_hint(a: IntObject): int = a.digitCount * PyLong_DECIMAL_SHIFT
 #TODO:intobject miss
 #method
 proc `$`*(i: IntObject): string{.raises: [].} =
-  ## this ignores `sys.flags.int_max_str_digits`,
+  ## this ignores `get_intobject_state().max_str_digits`,
   ##  and may raises `OverflowDefect` if `i` contains too many digits
   result = newStringOfCap(i.length_hint)
   result.fill i
 
 proc toStringCheckThreshold*(a: IntObject, v: var string): bool{.raises: [].} =
-  ## this respects `sys.flags.int_max_str_digits`
+  ## this respects `get_intobject_state().max_str_digits`
   ## 
   ## returns if exceeds threshold, but does not raise, instead returns false
   result = true
