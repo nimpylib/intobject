@@ -36,16 +36,18 @@ template private_mixOpPyWithNim*(mixb, mix){.dirty.} =
   mix divmod
   mix pow
 
+template private_mixOpPyWithNim_with_div_mod_bitwise*(mixb, mix){.dirty.} =
+  private_mixOpPyWithNim mixb, mix
+  mix `div`
+  mix `mod`
 
-private_mixOpPyWithNim mix, mix
-mix `div`
-mix `mod`
+  mix `and`
+  mix `or`
+  mix `xor`
+  mix `shl`
+  mix `shr`
 
-mix `and`
-mix `or`
-mix `xor`
-mix `shl`
-mix `shr`
+private_mixOpPyWithNim_with_div_mod_bitwise mix, mix
 
 when isMainModule:
   let t = newInt(10)

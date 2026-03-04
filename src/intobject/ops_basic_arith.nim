@@ -9,8 +9,9 @@ const
   intTen*  = newInt(10)
 
 using self: IntObject
-# assuming all positive, return a - b
+
 proc doCompare(a, b: IntObject): IntSign {. cdecl .} =
+  ## ignore sign, return `|a| - |b|`
   if a.digits.len < b.digits.len:
     return Negative
   if a.digits.len > b.digits.len:
@@ -26,8 +27,8 @@ proc doCompare(a, b: IntObject): IntSign {. cdecl .} =
       return Positive
   return Zero
 
-# assuming all positive, return a + b
 proc doAdd(a, b: IntObject): IntObject =
+  ## ignore sign, return `|a| + |b|`
   if a.digits.len < b.digits.len:
     return doAdd(b, a)
   var carry = TwoDigits(0)
@@ -42,8 +43,8 @@ proc doAdd(a, b: IntObject): IntObject =
   if TwoDigits(0) < carry:
     result.digits.add truncate(carry)
 
-# assuming all positive, return a - b
 proc doSub(a, b: IntObject): IntObject =
+  ## ignore sign, return `|a| - |b|`
   result = newIntSimple()
   result.sign = Positive
 
@@ -79,8 +80,8 @@ proc doSub(a, b: IntObject): IntObject =
   if result.digits.len == 0:
     result.sign = Zero
 
-# assuming all Natural, return a * b
 proc doMul(a: IntObject, b: Digit): IntObject =
+  ## ignore sign, return `|a| * |b|`
   result = newIntOfLen(a.digits.len)
   result.doMulImpl(b, i, 0..<a.digits.len, a.digits[i], result.digits[i])
 
@@ -119,6 +120,10 @@ proc `==`*(a, b: IntObject): bool =
   if a.sign != b.sign:
     return false
   return doCompare(a, b) == Zero
+
+proc `<=`*(a, b: IntObject): bool =
+  #TODO:opt
+  a < b or a == b
 
 proc `+`*(a, b: IntObject): IntObject =
   case a.sign
