@@ -1,6 +1,6 @@
 import std/[
   tables, algorithm, macros, strutils, math]
-from std/unicode import Rune
+from std/unicode import Rune, `==`
 # import ../numobjects_comm
 import ./decl
 export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
@@ -12,9 +12,9 @@ import ./[
 ]
 export bit_length, signbit, ops_basic_arith, ops_toint
 # import ../../stringobject/strformat
-# import ../../../Modules/unicodedata/[decimal, space]
+import pkg/unicode_space_decimal/[decimal, space]
 # from ../../../Utils/utils import unreachable
-import ./private/utils
+from ./private/utils import unreachable
 import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
 {.pragma: pyCFuncPragma, raises: [].} 
@@ -409,7 +409,7 @@ template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var
   result = newIntSimple()
   # assume s not empty
   result.digits.add 0
-  var pre = '\0'
+  var pre = C '\0'
   while i < s.len:
     when checkThreshold:
       if i > PY_INT_MAX_STR_DIGITS_THRESHOLD:
@@ -750,6 +750,8 @@ proc newIntFromNormalFloat*(dval: float): IntObject =
 
 when isMainModule:
   #let a = fromStr("-1234567623984672384623984712834618623")
+  let aa = parseIntObject([Rune'1'])
+  discard aa
   #let a = fromStr("3234567890")
   #[
   echo a

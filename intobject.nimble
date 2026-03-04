@@ -19,3 +19,4 @@ template pylib(x, ver) =
   requires if pylibPre == "": x & ver
            else: pylibPre & x
 pylib "nimpatch", " ^= 0.1.0"
+pylib "unicode_space_decimal", " ^= 0.1.0"
