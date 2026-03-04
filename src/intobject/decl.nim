@@ -1,65 +1,18 @@
 
 
-when defined(nimPreviewSlimSystem):
-  import std/assertions
-  export assertions
-
 # Why reinvent such a bad wheel?
 # because we seriously need low level control on our modules
 #
 # import ../../pyobject
 
-# js can't process 64-bit int although nim has this type for js
-when defined(js):
-  type
-    Digit = uint16
-    TwoDigits = uint32
-    SDigit = int32
-
-  const
-    digitBits = 16
-    PyLong_DECIMAL_SHIFT = 5
-    PyLong_DECIMAL_BASE = TwoDigits 100_000
-    
-  template truncate(x: TwoDigits): Digit =
-    const mask = 0x0000FFFF
-    Digit(x and mask)
-
-else:
-  type
-    Digit = uint32
-    TwoDigits = uint64
-    SDigit = int64
-
-  const
-    digitBits = 32
-    PyLong_DECIMAL_SHIFT = 10
-    PyLong_DECIMAL_BASE = TwoDigits 10_000_000_000
-
-  template truncate(x: TwoDigits): Digit =
-    Digit(x)
-
-type IntSign = enum
-  Negative = -1
-  Zero = 0
-  Positive = 1
-
-const
-  PyLong_SHIFT = digitBits
-
-# only export for ./intobject
-export Digit, TwoDigits, SDigit, digitBits, truncate,
- IntSign, PyLong_SHIFT, PyLong_DECIMAL_SHIFT, PyLong_DECIMAL_BASE
-# const digitPyLong_DECIMAL_BASE* = Digit PyLong_DECIMAL_BASE
+import ./decl_private
+# We do export `sign` (getter), which is public api
+export decl_private except digits, `sign=`, `digits=`
 
 # declarePyType Int(tpToken):
-#TODO:intobject  ren to IntObject
-#TODO:intobject  make attr private
-type IntObject* = object
-  #v: BigInt
-  #v: int
-  sign*: IntSign
-  digits*: seq[Digit]
+when isMainModule:
+  var a: IntObject
+  a.sign = a.sign
 
 proc isNil*(self: IntObject): bool {.inline.} = false
 proc newIntSimple*(): IntObject =
@@ -80,13 +33,13 @@ proc newInt*(i: Digit): IntObject =
   result = newIntSimple()
   if i != 0:
     result.digits.add i
-    result.sign = Positive
+    result.sign = IntSign.Positive
   # can't be negative
   else:
     result.sign = Zero
 
 const sMaxValue = SDigit(high(Digit)) + 1
-func fill[I: SomeInteger](digits: var typeof(IntObject.digits), ui: I){.cdecl.} =
+func fill[I: SomeInteger](digits: var seq[Digit], ui: I){.cdecl.} =
   var ui = ui
   while ui != 0:
     digits.add Digit(
@@ -104,14 +57,14 @@ proc newInt*[I: SomeSignedInt](i: I): IntObject =
   elif i == 0:
     result.sign = Zero
   else:
-    result.sign = Positive
+    result.sign = IntSign.Positive
 
 proc newInt*[I: SomeUnsignedInt and not Digit](i: I): IntObject =
   result = newIntSimple()
   if i == 0:
     result.sign = Zero
     return
-  result.sign = Positive
+  result.sign = IntSign.Positive
   result.digits.fill i
 
 const bigintErr = defined(js) and compileOption("jsBigInt64")

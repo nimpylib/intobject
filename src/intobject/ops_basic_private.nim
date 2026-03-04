@@ -1,6 +1,6 @@
 
 # import ../numobjects_comm
-import ./decl
+import ./decl_private
 template demote*(x: TwoDigits): Digit =
   Digit(x shr digitBits)
 proc inplaceAdd*(a: var IntObject, b: Digit) =

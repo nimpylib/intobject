@@ -1,6 +1,6 @@
 
 import ./[
-  decl, signbit, ops_bitwise,
+  decl_private, signbit, ops_bitwise,
   ops_basic_arith, ops_divmod,
 ]
 

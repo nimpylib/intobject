@@ -2,7 +2,7 @@
 # import ../numobjects_comm
 from std/math import divmod
 import ./private/utils
-import ./decl
+import ./[decl_private, decl]
 export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
 import ./[

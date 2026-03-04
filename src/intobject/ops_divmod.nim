@@ -1,6 +1,6 @@
 
 from std/math import floorDiv, floorMod
-import ./[decl,
+import ./[decl_private, decl,
   bit_length_util, shift, signbit,
   utils,
   ops_basic_arith, ops_toint

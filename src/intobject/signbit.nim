@@ -1,5 +1,5 @@
 
-import ./decl
+import ./[decl_private, decl]
 proc setSignNegative*(self: var IntObject){.inline.} =
   self.sign = Negative
 
@@ -18,5 +18,7 @@ proc flipSign*(intObj: var IntObject) =
   intObj.sign = IntSign(-int(intObj.sign))
 
 proc negate*(self: var IntObject){.inline.} =
+  ## `self = -self`
+  ##
   ## currently the same as `flipSign`_ as we didn't have small int
   self.flipSign

@@ -1,10 +1,9 @@
 
 import ./bit_length_util
-import ./decl
+import ./[decl_private, decl]
 proc digitCount*(v: IntObject): int{.inline.} = v.digits.len  ## `_PyLong_DigitCount`
 proc numbits*(v: IntObject): int64 =
   ## `_PyLong_NumBits`
-  assert not v.isNil
   let ndigits = v.digitCount
   #assert ndigits == 0 or 
   if ndigits > 0:

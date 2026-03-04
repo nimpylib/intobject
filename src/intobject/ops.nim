@@ -2,7 +2,7 @@ import std/[
   tables, macros, strutils, math]
 from std/unicode import Rune, `==`
 # import ../numobjects_comm
-import ./decl
+import ./[decl_private, decl]
 export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
 import ./[
@@ -58,12 +58,15 @@ template check_max_str_digits_with_msg(fail_cond; errMsg){.dirty.} =
   if max_str_digits > 0 and fail_cond:
     return IntObjectFromStrError.ExceedsMaxStrDigits #newValueError newPyAscii errMsg
 
+template digitsAdd0(res: IntObject) =
+  res.digits.add 0
+
 template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: uint8#[PyLongBase]#; checkThreshold: static[bool]; cToDigit) {.dirty.} =
-  bind inplaceMul, inplaceAdd, normalize, newIntSimple
+  bind inplaceMul, inplaceAdd, normalize, newIntSimple, digitsAdd0
   bind check_max_str_digits_with_msg, PY_INT_MAX_STR_DIGITS_THRESHOLD, MAX_STR_DIGITS_errMsg_to_int
   result = newIntSimple()
   # assume s not empty
-  result.digits.add 0
+  digitsAdd0(result)
   var pre = C '\0'
   while i < s.len:
     when checkThreshold:
@@ -83,8 +86,13 @@ template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var
   normalize(result)
 
 template isspace(c: char): bool = c.isSpaceAscii
+
+template zeroDigits(res: IntObject): bool =
+  res.digitCount == 0
+
 template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: var uint8#[PyLongBase]#; checkThreshold: static[bool]; errInvStr; cToDigit) {.dirty.} =
-  bind fromStrAux, isspace, intZero
+  bind fromStrAux, isspace, intZero, zeroDigits
+  bind decl_private.`sign=`
   var sign: IntSign = Positive
   let L = s.len
   template chkIdx =
@@ -151,7 +159,7 @@ template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: va
     else:
       break
 
-  let zero = result.digits.len == 0
+  let zero = zeroDigits(result)
   if error_if_nonzero:
     #[reset the base to 0, else the exception message
       doesn't make too much sense]#
@@ -160,10 +168,7 @@ template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: va
       errInvStr
     #[there might still be other problems, therefore base
     remains zero here for the same reason]#
-  if zero:
-    result.sign = Zero
-  else:
-    result.sign = sign
+  decl_private.`sign=`(result, if zero: IntSign.Zero else: sign)
 
 
 proc parseInt*[C: char|Rune](s: openArray[C]; res: var IntObject): int =

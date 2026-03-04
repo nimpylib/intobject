@@ -3,7 +3,7 @@ import std/hashes
 import std/typetraits
 import ./signbit
 import ./[
-  decl, bit_length,
+  decl_private, decl, bit_length,
 ]
 export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
