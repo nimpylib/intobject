@@ -1,0 +1,2 @@
+
+{.pragma: pyCFuncPragma, raises: [].}
