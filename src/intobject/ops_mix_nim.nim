@@ -10,8 +10,8 @@ macro private_mixOpIntWithNim*{(`+`|`-`|`*`|`div`|`mod`){op}(a, b)}(
 
 template private_gen_mix*(mix; prim, pyT: typedesc; do1, do2){.dirty.} =
   template mix(op){.dirty.} =
-    template `op`*(a: pyT, b: prim): untyped = do1
-    template `op`*(a: prim, b: pyT): untyped = do2
+    template `op`*[T: prim](a: pyT, b: T): untyped = do1
+    template `op`*[T: prim](a: T, b: pyT): untyped = do2
 
 private_gen_mix mix, SomeInteger, IntObject:
   bind op, newInt

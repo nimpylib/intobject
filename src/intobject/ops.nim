@@ -53,13 +53,13 @@ type IntObjectFromStrError*{.pure.} = enum
 const PyLongBaseSet* = {0, 2..36}
 
 template check_max_str_digits_with_msg(fail_cond; errMsg){.dirty.} =
-  bind get_intobject_state
+  bind get_intobject_state, IntObjectFromStrError
   let max_str_digits = get_intobject_state().max_str_digits
   if max_str_digits > 0 and fail_cond:
     return IntObjectFromStrError.ExceedsMaxStrDigits #newValueError newPyAscii errMsg
 
 template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: uint8#[PyLongBase]#; checkThreshold: static[bool]; cToDigit) {.dirty.} =
-  bind inplaceMul, inplaceAdd, normalize
+  bind inplaceMul, inplaceAdd, normalize, newIntSimple
   bind check_max_str_digits_with_msg, PY_INT_MAX_STR_DIGITS_THRESHOLD, MAX_STR_DIGITS_errMsg_to_int
   result = newIntSimple()
   # assume s not empty
@@ -84,11 +84,11 @@ template fromStrAux[C: char|Rune](result: var IntObject; s: openArray[C]; i: var
 
 template isspace(c: char): bool = c.isSpaceAscii
 template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: var int; base: var uint8#[PyLongBase]#; checkThreshold: static[bool]; errInvStr; cToDigit) {.dirty.} =
-  bind fromStrAux, isspace
+  bind fromStrAux, isspace, intZero
   var sign: IntSign = Positive
   let L = s.len
   template chkIdx =
-    if i == L: return
+    if system.`==`(i, L): return
   
   template incIdx =
     i.inc
