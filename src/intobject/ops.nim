@@ -511,7 +511,7 @@ template fromStrImpl[C: char|Rune](result: var IntObject; s: openArray[C]; i: va
     result.sign = sign
 
 
-proc fromStr*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
+proc parseInt*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
   ## with `base = 0` (a.k.a. support prefix like 0b)
   ## and ignore `get_intobject_state().max_str_digits`
   template err = return
@@ -526,9 +526,9 @@ proc fromStr*[C: char|Rune](s: openArray[C]; res: var IntObject): int =
         d = cast[Digit](it)
       do: err
       d
-proc newIntFromStr*[C: char|Rune](s: openArray[C]): IntObject{.raises: [ValueError].} =
+proc parseIntObject*[C: char|Rune](s: openArray[C]): IntObject{.raises: [ValueError].} =
   ## This ignores `get_intobject_state().max_str_digits`
-  if s.fromStr(result) != s.len:
+  if s.parseInt(result) != s.len:
     raise newException(ValueError, "could not convert string to int")
 
 
@@ -674,7 +674,10 @@ proc newInt*[C: char](smallInt: C): IntObject =
   newInt int smallInt  # TODO
 
 proc newInt*[C: Rune|char](str: openArray[C]): IntObject = 
-  newIntFromStr(str)
+  parseIntObject(str)
+
+proc `'iobj`*[C: Rune|char](str: openArray[C]): IntObject = 
+  parseIntObject(str)
 
 proc newIntFromNormalFloat*(dval: float): IntObject =
   ## `PyLong_FromDouble`, but assumes dval is normal (not inf or nan)
@@ -756,7 +759,7 @@ when isMainModule:
   echo a + a - a - a - a
   ]#
   #let a = fromStr("88888888888888")
-  let a = newInt("100000000000")
+  let a = 100000000000'iobj
   echo a.pow(intTen)
   echo a
   #echo a * intTen
