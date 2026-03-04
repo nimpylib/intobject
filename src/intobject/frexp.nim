@@ -11,11 +11,14 @@ template `+`[T](a: openArray[T], i: int): openArray[T] = a.toOpenArray(i, a.high
    If a == 0, return 0.0 and set *e = 0.  ]#
 
 # attempt to define 2.0**DBL_MANT_DIG as a compile-time constant
-when defined(js) or DBL_MANT_DIG == 53:
-  const EXP2_DBL_MANT_DIG = 9007199254740992.0
-else:
+const HasLdExp* = not(
+  defined(js) or DBL_MANT_DIG == 53
+)  ## inner. unstable
+when HasLdExp:
   proc ldexp*(arg: cdouble, exp: cint): cdouble{.importc, header: "<math.h>".}  ## inner, for PyLong_AsDouble
   let EXP2_DBL_MANT_DIG = ldexp(1.0, DBL_MANT_DIG)
+else:
+  const EXP2_DBL_MANT_DIG = 9007199254740992.0
 
 const PyLong_BASE = 1i64 shl PyLong_SHIFT
 proc frexp*(a: IntObject, e: var int64): float =

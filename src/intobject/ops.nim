@@ -9,9 +9,11 @@ import ./[
   bit_length, bit_length_util, signbit,
   fromStrUtils, utils,
   ops_basic_private, ops_basic_arith, ops_toint,
-  ops_divmod, ops_pow,
+  ops_divmod, ops_pow, ops_dollar, ops_tofloat
 ]
-export bit_length, signbit, ops_basic_arith, ops_toint, ops_divmod, ops_pow
+export bit_length, signbit,
+  ops_basic_arith, ops_toint, ops_divmod, ops_pow,
+  ops_dollar, ops_tofloat
 # import ../../stringobject/strformat
 import pkg/unicode_space_decimal/[decimal, space]
 # from ../../../Utils/utils import unreachable
@@ -270,31 +272,6 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
   WRITE_DIGITS p
   assert p == 0
 
-proc fill(result: var string, i: IntObject) =
-  if i.zero:
-    result = "0"
-    return
-  var ii = i.copyOnlyDigits()
-  var r: Digit
-  while true:
-    ii = ii.divRem(10, r)
-    result.add(char(r + Digit('0')))
-    if ii.digits.len == 0:
-      break
-  #strSeq.add($i.digits)
-  if i.negative:
-    result.add '-'
-  result.reverse
-
-proc length_hint(a: IntObject): int = a.digitCount * PyLong_DECIMAL_SHIFT
-
-#TODO:intobject miss
-#method
-proc `$`*(i: IntObject): string{.raises: [].} =
-  ## this ignores `get_intobject_state().max_str_digits`,
-  ##  and may raises `OverflowDefect` if `i` contains too many digits
-  result = newStringOfCap(i.length_hint)
-  result.fill i
 
 proc toStringCheckThreshold*(a: IntObject, v: var string): bool{.raises: [].} =
   ## this respects `get_intobject_state().max_str_digits`
