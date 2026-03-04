@@ -1,21 +1,63 @@
 
 import ./[
-  decl, signbit,
+  decl, signbit, ops_bitwise,
   ops_basic_arith, ops_divmod,
 ]
 
+proc isOdd*(i: IntObject): bool =
+  not i.zero and (i.digits[0] mod 2 == 1)
+
+proc isEven*(i: IntObject): bool =
+  i.zero or (i.digits[0] mod 2 == 0)
+
+proc posShr1(posI: IntObject): IntObject =
+  #TODO:opt
+  return posI.floordivNonZero intTwo
+
+template posFloordiv2(posI: IntObject): IntObject = posI.posShr1
+
+func pow2(i: IntObject): IntObject =
+  ## i**2
+  #TODO:opt
+  i*i
+
 # a**b
-proc pow*(a, b: IntObject): IntObject =
-  assert(not b.negative)
+proc powNatural*(a, b: IntObject): IntObject{.raises: [].} =
+  ## assuming b is Positive or zero (Natural)
+  assert not b.negative
   if b.zero:
     return intOne
   # we have checked b is not zero
-  let new_b = b.floorDivNonZero intTwo
+  let new_b = b.posFloordiv2
+  let half_c = powNatural(a, new_b)
+  result = half_c.pow2
+  if isOdd(b):
+    return result * a
+
+proc pow*(a: IntObject; b: Natural|SomeUnsignedInt): IntObject =
+  if b == 0:
+    return intOne
+  let new_b = b div 2
   let half_c = pow(a, new_b)
-  if b.digits[0] mod 2 == 1:
-    return half_c * half_c * a
-  else:
-    return half_c * half_c
+  result = half_c.pow2
+  if b mod 2 == 1:
+    return result * a
 
+proc powPos*(a, b: IntObject): IntObject{.raises: [].} =
+  ## assuming b is Positive
+  assert b.positive
+  # we have checked b is not zero
+  let new_b = b.posFloordiv2
+  if new_b.zero:
+    assert b == intOne
+    return a
+  let half_c = powPos(a, new_b)
+  result = half_c.pow2
+  if isOdd(b):
+    return result * a
 
-
+proc pow*(a, b: IntObject): IntObject =
+  ## raises ValueError when `b` is negative
+  if b.negative:
+    raise newException(ValueError, "negative exponent will result in float")
+  powNatural(a, b)
