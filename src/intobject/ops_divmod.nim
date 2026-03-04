@@ -52,7 +52,7 @@ proc inplaceDivRem1(pout: var openArray[Digit], pin: openArray[Digit], size: int
   return Digit(remainder)
 
 proc divRem*(a: IntObject, n: Digit, remainder: var Digit): IntObject =
-  ## divRem1
+  ## divRem1.
   ## Divide an integer by a single digit, returning both quotient and remainder
   ## The sign of a is ignored; n should not be zero.
   ## 
@@ -82,7 +82,7 @@ proc `mod`*(a: IntObject, n: TwoDigits): IntObject =
   ## 
   ## .. hint::
   ##   Other mixin ops against fixed-width integer are implemented in
-  ##   `ops_mix_nim.nim`<./ops_mix_nim.html>_
+  ##   [ops_mix_nim.nim](./ops_mix_nim.html)
   assert n > 0 and n <= maxValue - 1
   let size = a.digits.len
   let remainder = inplaceRem1(a.digits, size, n)
@@ -174,7 +174,7 @@ proc divmodNonZero*(a, b: IntObject): tuple[d, m: IntObject] =
 proc divmod*(a, b: IntObject): tuple[d, m: IntObject] =
   ## .. note::
   ##   this is Python's `divmod`(get division and modulo),
-  ##   ref `divrem`_ for Nim's std/math divmod
+  ##   ref `proc divrem(IntObject, IntObject)`_ for Nim's std/math divmod
   ##
   ## .. hint:: this raises DivByZeroDefect when b is zero
   chkRaiseDivByZero tryDivmod(a, b, result.d, result.m)
