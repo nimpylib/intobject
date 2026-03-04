@@ -1,7 +1,7 @@
 
 import std/algorithm
 import ./[
-  decl, utils,
+  decl_private, decl, utils,
   ops_toint, ops_divmod,
 ]
 

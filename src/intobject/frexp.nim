@@ -1,5 +1,5 @@
 
-import ./[decl, bit_length, shift, signbit, floatinfos]
+import ./[decl_private, decl, bit_length, shift, signbit, floatinfos]
 
 template `|=`(dest, i) = dest = dest or i
 

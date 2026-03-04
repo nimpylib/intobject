@@ -1,6 +1,6 @@
 
 # import ../numobjects_comm
-import ./[decl, utils, signbit, ops_basic_private]
+import ./[decl_private, decl, utils, signbit, ops_basic_private]
 
 const
   intZero* = newInt(0)
@@ -46,7 +46,7 @@ proc doAdd(a, b: IntObject): IntObject =
 proc doSub(a, b: IntObject): IntObject =
   ## ignore sign, return `|a| - |b|`
   result = newIntSimple()
-  result.sign = Positive
+  result.sign = IntSign.Positive
 
   var borrow = false #Digit(0)
 
@@ -147,7 +147,7 @@ proc `+`*(a, b: IntObject): IntObject =
       return a
     of Positive:
       result = doAdd(a, b)
-      result.sign = Positive
+      result.sign = IntSign.Positive
       return
 
 proc `-`*(a, b: IntObject): IntObject =
@@ -166,7 +166,7 @@ proc `-`*(a, b: IntObject): IntObject =
     case b.sign
     of Negative:
       result = b.copyOnlyDigits()
-      result.sign = Positive
+      result.sign = IntSign.Positive
       return
     of Zero:
       return a
@@ -178,7 +178,7 @@ proc `-`*(a, b: IntObject): IntObject =
     case b.sign
     of Negative:
       result = doAdd(a, b)
-      result.sign = Positive
+      result.sign = IntSign.Positive
       return
     of Zero:
       return a
@@ -201,7 +201,7 @@ proc `*`*(a, b: IntObject): IntObject =
     case b.sign
     of Negative:
       result = doMul(a, b)
-      result.sign = Positive
+      result.sign = IntSign.Positive
       return
     of Zero:
       return intZero
@@ -221,5 +221,5 @@ proc `*`*(a, b: IntObject): IntObject =
       return intZero
     of Positive:
       result = doMul(a, b)
-      result.sign = Positive
+      result.sign = IntSign.Positive
       return

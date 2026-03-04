@@ -1,6 +1,6 @@
 
 from std/math import ceilDiv, divmod
-import ./decl
+import ./decl_private
 #[
 import ./nint_proto
 import ../reimporter
@@ -132,7 +132,7 @@ proc add_from_bytes(res: var NimInt, bytes: PyBytes, byteorder: Endianness, sign
   if res.digits.len == 0:
     res.sign = Zero
   else:
-    res.sign = Positive
+    res.sign = IntSign.Positive
   if signed and bytes.highByte(byteorder, bHi).signbitSet():
     # we've check bytes is not empty above
     res.complement2(bLen)

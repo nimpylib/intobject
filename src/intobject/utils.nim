@@ -1,5 +1,5 @@
 
-import ./decl
+import ./[decl_private, decl]
 
 
 proc newIntOfLen*(L: int): IntObject =
@@ -9,7 +9,7 @@ proc newIntOfLen*(L: int): IntObject =
   result = newIntSimple()
   result.digits.setLen(L)
   if L != 0:
-    result.sign = Positive
+    result.sign = IntSign.Positive
 
 when declared(setLenUninit):
   template setLenUninit*(intObj: IntObject, L: int) =
@@ -22,7 +22,7 @@ proc newIntOfLenUninit*(L: int): IntObject =
   result = newIntSimple()
   result.setLenUninit(L)
   if L != 0:
-    result.sign = Positive
+    result.sign = IntSign.Positive
 
 proc setSignAndDigitCount*(intObj: var IntObject, sign: IntSign, digitCount: int) =
   ## `_PyLong_SetSignAndDigitCount`
