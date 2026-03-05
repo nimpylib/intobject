@@ -20,3 +20,4 @@ template pylib(x, ver) =
            else: pylibPre & x
 pylib "nimpatch", " ^= 0.1.0"
 pylib "unicode_space_decimal", " ^= 0.1.0"
+pylib "handy_sugars", " ^= 0.1.0"
