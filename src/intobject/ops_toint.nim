@@ -31,9 +31,8 @@ template PY_ABS_INT_MIN(T): untyped = cast[T.toUnsigned](T.low) ## \
 type PossibleBiggestDigit = uint32
 static: assert digitBits <= 8 * sizeof PossibleBiggestDigit
 func absToUInt*[U: uint32|uint64|BiggestUInt|uint](pyInt: IntObject, x: var U): bool{.cdecl.} =
-  ## EXT. unstable.
+  ## try storing absolute value on `x`
   ##
-  ## ignore signbit.
   ## returns false on overflow
 
   #TODO:opt-long apply python/cpython@d754f75f42f040267d818ab804ada340f55e5925
