@@ -1,25 +1,32 @@
 
+from std/math import `^`, divmod
+from std/algorithm import reverse
 import ./[
-  decl_private, bit_length, bit_length_util, signbit,
-  ops_dollar,
+  decl_private, utils,
+  bit_length, bit_length_util, signbit,
+  ops_dollar, ops_divmod,
 ]
 import ./Include/pycore_int
 from ./private/utils import unreachable
 
 
+const
+  Powers = {2u8, 4, 8, 16, 32}
 proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): bool =
   ## long_format_binary
   ## 
   ## returns if not overflow
-  assert base in {2u8, 8, 16}
+  assert base in Powers
   result = true
 
   let
     size_a = a.digitCount
     high_a = size_a - 1
   let bits = case base
+  of 32: 5
   of 16: 4
   of 8: 3
+  of 4: 2
   of 2: 1
   else: unreachable
   let negative = a.isNegative
@@ -27,6 +34,7 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
   if size_a == 0:
     v = "0"
     return
+  else:
     # Ensure overflow doesn't occur during computation of sz.
     if size_a > int.high - 3 div PyLong_SHIFT:
       return false #newOverflowError newPyAscii"int too large to format"
@@ -59,7 +67,8 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
       case bits
       of 4: *--'x'
       of 3: *--'o'
-      else: *--'b' # base == 2
+      of 1: *--'b'
+      else: unreachable
       *--'0'
     if negative: *--'-'
 
@@ -94,7 +103,68 @@ proc toStringCheckThreshold*(a: IntObject, v: var string): bool{.raises: [].} =
     check_max_str_digits strlen - int(a.isNegative) > max_str_digits
 
 proc format*(i: IntObject, base: uint8, s: var string): bool =
-  # `_PyLong_Format`
-  # `s` is a `out` param
+  ## `_PyLong_Format`
+  ## `s` is a `out` param
+  ##
+  ## .. note:: `base` must be either 10 or a power of 2 less than 64
   if base == 10: toStringCheckThreshold(i, s)
   else: format_binary(i, base, true, s)
+
+const BaseRng = 2..36
+type BaseRngT = 2..36
+func calcSizes(): array[BaseRngT, int] =
+  for i in BaseRng:
+    var x = int64(i)
+    while x <= int64(uint32.high) + 1:
+      x *= i
+      result[i].inc
+
+const
+  digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+  sizes = calcSizes() # `sizes[base]` is the maximum number of digits that fully fit in a `uint32`
+
+proc toStringNonBinary(a: IntObject, base: BaseRngT): string =
+  if a.isZero:
+    return "0"
+
+  let size = sizes[base]
+  let
+    base = uint32(base)
+    d = base ^ size
+  var tmp = a.copyOnlyDigits
+  tmp.sign = IntSign.Positive
+
+  result = newStringOfCap(size * a.digits.len + 1) # estimate the length of the result
+
+  while tmp.isPositive:
+    var
+      c: uint32
+    # (tmp, c) = unsignedDivRem(tmpCopy, d)
+    tmp = divRem(tmp, d, c)
+    var modu: uint32
+    for i in 1..size:
+      (c, modu) = divmod(c, base)
+      result.add(digits[modu])
+
+  # normalize
+  var i = result.high
+  while i > 0 and result[i] == '0':
+    dec i
+  result.setLen(i+1)
+
+  if a.isNegative:
+    result.add('-')
+
+  result.reverse()
+
+
+proc toString*(i: IntObject, base: BaseRngT): string =
+  ## unlike `toStringCheckThreshold`_ ,
+  ##  this does not check `get_intobject_state().max_str_digits`
+  case base
+  of 10: result = $i
+  of Powers:
+    if format_binary(i, base.uint8, false, result): return
+    raise newException(OverflowDefect, "int too large to format")
+  else:
+    result = toStringNonBinary(i, base)
