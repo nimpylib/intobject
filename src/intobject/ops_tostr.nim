@@ -129,7 +129,7 @@ proc toStringNonBinary(a: IntObject, base: BaseRngT): string =
 
   let size = sizes[base]
   let
-    base = uint32(base)
+    base = Digit(base)
     d = base ^ size
   var tmp = a.copyOnlyDigits
   tmp.sign = IntSign.Positive
@@ -138,7 +138,7 @@ proc toStringNonBinary(a: IntObject, base: BaseRngT): string =
 
   while tmp.isPositive:
     var
-      c: uint32
+      c: Digit
     # (tmp, c) = unsignedDivRem(tmpCopy, d)
     tmp = divRem(tmp, d, c)
     var modu: uint32
