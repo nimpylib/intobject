@@ -12,6 +12,7 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
   ## 
   ## returns if not overflow
   assert base in {2u8, 8, 16}
+  result = true
 
   let
     size_a = a.digitCount
@@ -25,11 +26,10 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
   var sz: int
   if size_a == 0:
     v = "0"
-    return true
-  else:
+    return
     # Ensure overflow doesn't occur during computation of sz.
     if size_a > int.high - 3 div PyLong_SHIFT:
-      return #newOverflowError newPyAscii"int too large to format"
+      return false #newOverflowError newPyAscii"int too large to format"
     {.push overflowChecks: off.}
     let size_a_in_bits = (high_a) * PyLong_SHIFT + bit_length(a.digits[high_a])
     # Allow 1 character for a '-' sign.
