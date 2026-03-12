@@ -11,12 +11,12 @@ test "int from bytes with more digits":
   let b2 = "\x01\x02\x03\x04"
   let i2 = newInt(b2, bigEndian)
   check i2 == 0x01020304
-  check i2.to_bytes(4, bigEndian) == @b2
+  check i2.to_chars(4, bigEndian) == @b2
 
   let b3 = "\x05\x04\x03\x02\x01"
   check newInt(b3, littleEndian) == 0x0102030405
   check newInt(b3, bigEndian) ==    0x0504030201
-  check newInt(b3, littleEndian).to_bytes(5, littleEndian) == @b3
+  check newInt(b3, littleEndian).to_chars(5, littleEndian) == @b3
 
 test "int from bytes with signed and negative value":
   let b4 = "\x80\x00"

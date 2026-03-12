@@ -17,7 +17,7 @@ when true:
 
   type PyBytes = openArray[char]
   template getChar(x: PyBytes, i: int): char = x[i]
-  template getInt(x: PyBytes, i: int): int = int x[i]
+  template getChar(x: openArray[uint8|int8], i: int): char = char x[i]
 
 import pkg/nimpatch/castChar
 import pkg/nimpatch/newUninit
@@ -28,7 +28,7 @@ func parseByteOrder*(byteorder: string): Endianness =
   elif byteorder == "big": result = bigEndian
   else: raise newException(ValueError, "byteorder must be either 'little' or 'big'")
 
-template highByte(b: PyBytes, endian: Endianness, hi = b.len-1): uint8 =
+func highByte[T: char|uint8|int8](b: openArray[T], endian: Endianness, hi: int = b.len-1): uint8{.inline.} =
   uint8:
     if endian == bigEndian : b.getChar 0
     else: b.getChar hi
@@ -76,7 +76,7 @@ proc complement2(res: var NimInt, bLen: int) =
   else:
     res.sign = Negative
 
-proc add_from_bytes(res: var NimInt, bytes: PyBytes, byteorder: Endianness, signed=false) =
+proc add_from_bytes[T](res: var NimInt, bytes: openArray[T], byteorder: Endianness, signed=false) =
   assert res.digitCount == 0
 
   let bLen = bytes.len
@@ -103,7 +103,7 @@ proc add_from_bytes(res: var NimInt, bytes: PyBytes, byteorder: Endianness, sign
           else:
             bHi - (itot + it)
         curDigit = (curDigit shl 8
-          ) or (bytes.getInt(byteIndex).Digit)
+          ) or (bytes[byteIndex].Digit)
     else:
       if cisEndian:
         copyMem(addr curDigit, addr bytes[itot], r)
@@ -137,9 +137,11 @@ proc add_from_bytes(res: var NimInt, bytes: PyBytes, byteorder: Endianness, sign
     # we've check bytes is not empty above
     res.complement2(bLen)
 
-proc newInt*(bytes: PyBytes, endianness: Endianness, signed=false): NimInt =
+template newIntImpl =
   result = newInt()
   result.add_from_bytes(bytes, endianness, signed)
+proc newInt*(bytes: PyBytes, endianness: Endianness, signed=false): NimInt = newIntImpl
+proc newInt*[T: uint8|int8](bytes: openArray[T], endianness: Endianness, signed=false): NimInt = newIntImpl
 
 using self: NimInt
 proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, signed=false, result: var seq[T]) =
@@ -174,9 +176,14 @@ proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, si
     else:
       result[length - 1 - pos] = cast[T](byteVal)
 
-proc to_bytes*(self; length: int, endianness: Endianness, signed=false): seq[char] =
-  self.to_bytes(length, endianness, signed=signed, result=result)
+template toX(X){.dirty.} =
+  proc `to X s`*(self; length: int, endianness: Endianness, signed=false): seq[X] =
+    self.to_bytes(length, endianness, signed=signed, result=result)
 
-proc to_bytes*(self; length=1, byteorder: string = "big", signed=false): seq[char] =
-  let endianness = parseByteOrder $byteorder
-  self.to_bytes(length, endianness, signed=signed, result=result)
+  proc `to X s`*(self; length=1, byteorder: string = "big", signed=false): seq[X] =
+    let endianness = parseByteOrder $byteorder
+    self.to_bytes(length, endianness, signed=signed, result=result)
+
+toX char
+toX byte
+
