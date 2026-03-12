@@ -144,12 +144,18 @@ proc newInt*(bytes: PyBytes, endianness: Endianness, signed=false): NimInt = new
 proc newInt*[T: uint8|int8](bytes: openArray[T], endianness: Endianness, signed=false): NimInt = newIntImpl
 
 using self: NimInt
-proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, signed=false, result: var seq[T]) =
+type IntObjectToBytesError*{.pure.} = enum
+  Ok
+  LengthNegative = "length argument must be non-negative"
+  NegativeToUnsigned = "can't convert negative int to unsigned"
+  TooBigToConvert = "int too big to convert"
+
+proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, signed=false, res: var seq[T]): IntObjectToBytesError =
   ## EXT.
   if length < 0:
-    raise newException(ValueError, "length argument must be non-negative")
+    return LengthNegative
   if not signed and self < 0:
-    raise newException(OverflowDefect, "can't convert negative int to unsigned")
+    return NegativeToUnsigned
 
   var bitLen = 0
   if self.digits.len > 0:
@@ -161,10 +167,10 @@ proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, si
     bitLen = (self.digits.len - 1) * digitBits + hiBits
   let byteLen = ceilDiv(bitLen, 8)
   if byteLen > length:
-    raise newException(OverflowDefect, "int too big to convert")
+    return TooBigToConvert
 
   const digitBytes = digitBits div 8
-  result = newSeqUninit[T](length)
+  res = newSeqUninit[T](length)
   for pos in 0..<length:
     let digitIndex = pos div digitBytes
     let byteOffset = (pos mod digitBytes) * 8
@@ -172,18 +178,34 @@ proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, si
     if digitIndex < self.digits.len:
       byteVal = (self.digits[digitIndex] shr byteOffset) and Digit(0xFF)
     if endianness == littleEndian:
-      result[pos] = cast[T](byteVal)
+      res[pos] = cast[T](byteVal)
     else:
-      result[length - 1 - pos] = cast[T](byteVal)
+      res[length - 1 - pos] = cast[T](byteVal)
 
-template toX(X){.dirty.} =
+template toX(X; runnableExamples2){.dirty.} =
   proc `to X s`*(self; length: int, endianness: Endianness, signed=false): seq[X] =
-    self.to_bytes(length, endianness, signed=signed, result=result)
+    let res = self.to_bytes(length, endianness, signed=signed, res=result)
+    if res == IntObjectToBytesError.Ok: return
+    raise newException(ValueError, $res)
+
 
   proc `to X s`*(self; length=1, byteorder: string = "big", signed=false): seq[X] =
+    ## .. warning::
+    ##   for compatibility with Python, the default value of `length` is 1.
+    ##   And if the `length` bytes is not enough to hold the integer, it raises `ValueError`
+    runnableExamples2
     let endianness = parseByteOrder $byteorder
-    self.to_bytes(length, endianness, signed=signed, result=result)
+    self.`to X s`(length, endianness, signed=signed)
 
-toX char
-toX byte
+toX char: discard
+toX byte:
+  runnableExamples:
+    ## To convert with a suitable length, you can use the `length` argument:
+    import std/math
+    import intobject
+    let i = newInt("\x01\x02", bigEndian)
+    assert [1u8, 2] == i.to_bytes(length = ceilDiv(i.numbits, 8))
+
+    doAssertRaises ValueError:
+      discard i.to_bytes()
 
