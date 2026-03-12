@@ -6,7 +6,7 @@ import ./[
 ]
 
 proc fill(result: var string, i: IntObject) =
-  if i.zero:
+  if i.isZero:
     result = "0"
     return
   var ii = i.copyOnlyDigits()
@@ -17,7 +17,7 @@ proc fill(result: var string, i: IntObject) =
     if ii.digits.len == 0:
       break
   #strSeq.add($i.digits)
-  if i.negative:
+  if i.isNegative:
     result.add '-'
   result.reverse
   #TODO:opt

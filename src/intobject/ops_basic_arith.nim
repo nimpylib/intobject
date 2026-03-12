@@ -192,7 +192,7 @@ proc `-`*(a: IntObject): IntObject =
   result.flipSign
 
 proc abs*(self): IntObject =
-  if self.negative: -self
+  if self.isNegative: -self
   else: self
 
 proc `*`*(a, b: IntObject): IntObject =

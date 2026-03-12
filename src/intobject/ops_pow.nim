@@ -5,10 +5,10 @@ import ./[
 ]
 
 proc isOdd*(i: IntObject): bool =
-  not i.zero and (i.digits[0] mod 2 == 1)
+  not i.isZero and (i.digits[0] mod 2 == 1)
 
 proc isEven*(i: IntObject): bool =
-  i.zero or (i.digits[0] mod 2 == 0)
+  i.isZero or (i.digits[0] mod 2 == 0)
 
 proc posShr1(posI: IntObject): IntObject =
   #TODO:opt
@@ -24,8 +24,8 @@ func pow2(i: IntObject): IntObject =
 # a**b
 proc powNatural*(a, b: IntObject): IntObject{.raises: [].} =
   ## assuming b is Positive or zero (Natural)
-  assert not b.negative
-  if b.zero:
+  assert not b.isNegative
+  if b.isZero:
     return intOne
   # we have checked b is not zero
   let new_b = b.posFloordiv2
@@ -45,10 +45,10 @@ proc pow*(a: IntObject; b: Natural|SomeUnsignedInt): IntObject =
 
 proc powPos*(a, b: IntObject): IntObject{.raises: [].} =
   ## assuming b is Positive
-  assert b.positive
+  assert b.isPositive
   # we have checked b is not zero
   let new_b = b.posFloordiv2
-  if new_b.zero:
+  if new_b.isZero:
     assert b == intOne
     return a
   let half_c = powPos(a, new_b)
@@ -58,6 +58,6 @@ proc powPos*(a, b: IntObject): IntObject{.raises: [].} =
 
 proc pow*(a, b: IntObject): IntObject =
   ## raises ValueError when `b` is negative
-  if b.negative:
+  if b.isNegative:
     raise newException(ValueError, "negative exponent will result in float")
   powNatural(a, b)

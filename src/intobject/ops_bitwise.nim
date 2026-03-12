@@ -39,8 +39,8 @@ proc longBitwise(a: IntObject, op: static[char], b: IntObject): IntObject =
     b = b
     sizeA = digitCount(a)
     sizeB = digitCount(b)
-    nega = a.negative()
-    negb = b.negative()
+    nega = a.isNegative()
+    negb = b.isNegative()
     sizeZ: int
     negz: bool
     z: IntObject
@@ -118,7 +118,7 @@ template tooManyShiftErr =
 
 
 proc long_rshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
-  let a_negative = a.negative()
+  let a_negative = a.isNegative()
   var
     remshift = remshift
     wordshift = wordshift
@@ -184,7 +184,7 @@ proc long_lshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
     inc newsize
 
   var z = newIntOfLenUninit(newsize)
-  if a.negative:
+  if a.isNegative:
     #assert(Py_REFCNT(z) == 1);
     z.flipSign()
   for i in 0..<wordshift:
@@ -222,7 +222,7 @@ template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
 
 
   proc sh*(a, b: IntObject): IntObject =
-    if b.negative:
+    if b.isNegative:
       raise newException(ValueError, "negative shift count")
     var overflow: IntSign
     let shiftby = b.toSomeUnsignedInt[:BiggestUInt](overflow)
@@ -234,7 +234,7 @@ genShift `shl`, long_lshift1:
   tooManyShiftErr()
 
 genShift `shr`, long_rshift1:
-  if a.negative: return newInt -1
+  if a.isNegative: return newInt -1
   else: return intZero
 
 when isMainModule:

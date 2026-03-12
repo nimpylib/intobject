@@ -14,7 +14,7 @@ const maxValue = TwoDigits(high(Digit)) + 1
 func fastExtract1(a: IntObject): SDigit =
   # assert a.digits.len == 1
   result = SDigit a.digits[0]
-  if a.negative:
+  if a.isNegative:
     result = -result
 
 template fastExtract(a, b){.dirty.} =
@@ -280,7 +280,7 @@ proc tryRem(a, b: IntObject, prem: var IntObject): bool{.pyCFuncPragma.} =
     discard xDivRem(a, b, prem)
 
   #[ Set the sign.]#
-  if (a.sign == Negative) and not prem.zero():
+  if (a.sign == Negative) and not prem.isZero():
     prem.setSignNegative()
 
 proc tryDivrem(a, b: IntObject, pdiv, prem: var IntObject): bool{.pyCFuncPragma.} =
@@ -316,7 +316,7 @@ proc tryDivrem(a, b: IntObject, pdiv, prem: var IntObject): bool{.pyCFuncPragma.
        so a = b*z + r.]#
   if (a.sign == Negative) != (b.sign == Negative):
     pdiv.setSignNegative()
-  if (a.sign == Negative) and not prem.zero():
+  if (a.sign == Negative) and not prem.isZero():
     prem.setSignNegative()
 
 proc divrem*(a, b: IntObject): tuple[d, r: IntObject] =
@@ -346,6 +346,6 @@ proc tryDivmod(v, w: IntObject, divRes, modRes: var IntObject): bool{.pyCFuncPra
 
 proc ceilDiv*(a, b: IntObject): IntObject =
   var (q, r) = divrem(a, b)
-  if not r.zero and not (a.negative xor b.negative):
+  if not r.isZero and not (a.isNegative xor b.isNegative):
     return q + intOne
   return q
