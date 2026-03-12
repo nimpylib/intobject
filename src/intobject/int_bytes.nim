@@ -157,16 +157,7 @@ proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, si
   if not signed and self < 0:
     return NegativeToUnsigned
 
-  var bitLen = 0
-  if self.digits.len > 0:
-    var hi = self.digits[^1]
-    var hiBits = 0
-    while hi > 0:
-      inc hiBits
-      hi = hi shr 1
-    bitLen = (self.digits.len - 1) * digitBits + hiBits
-  let byteLen = ceilDiv(bitLen, 8)
-  if byteLen > length:
+  if self.byteCount > length:
     return TooBigToConvert
 
   const digitBytes = digitBits div 8
@@ -201,10 +192,9 @@ toX char: discard
 toX byte:
   runnableExamples:
     ## To convert with a suitable length, you can use the `length` argument:
-    import std/math
     import intobject
     let i = newInt("\x01\x02", bigEndian)
-    assert [1u8, 2] == i.to_bytes(length = ceilDiv(i.numbits, 8))
+    assert [1u8, 2] == i.to_bytes(length = i.byteCount)
 
     doAssertRaises ValueError:
       discard i.to_bytes()
