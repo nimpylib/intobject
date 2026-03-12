@@ -22,7 +22,7 @@ proc format_binary*(a: IntObject, base: uint8, alternate: bool, v: var string): 
   of 8: 3
   of 2: 1
   else: unreachable
-  let negative = a.negative
+  let negative = a.isNegative
   var sz: int
   if size_a == 0:
     v = "0"
@@ -91,7 +91,7 @@ proc toStringCheckThreshold*(a: IntObject, v: var string): bool{.raises: [].} =
   v = $a
   let strlen = v.len
   if strlen > PY_INT_MAX_STR_DIGITS_THRESHOLD:
-    check_max_str_digits strlen - int(a.negative) > max_str_digits
+    check_max_str_digits strlen - int(a.isNegative) > max_str_digits
 
 proc format*(i: IntObject, base: uint8, s: var string): bool =
   # `_PyLong_Format`

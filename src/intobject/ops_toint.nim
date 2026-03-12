@@ -82,7 +82,7 @@ proc toInt*(pyInt: IntObject, overflow: var IntSign): int =
 
 proc toSomeUnsignedInt*[U: SomeUnsignedInt](pyInt: IntObject, overflow: var IntSign): U =
   ## like `toSomeSignedInt`<#toInt,IntObject,IntSign>`_ but for `uint`
-  overflow = if pyInt.negative: Negative
+  overflow = if pyInt.isNegative: Negative
   elif pyInt.absToUInt(result): Zero
   else: IntSign.Positive
 proc toUInt*(pyInt: IntObject, overflow: var IntSign): uint =
@@ -97,7 +97,7 @@ proc toInt*(pyInt: IntObject, res: var int): bool =
 
 proc toUInt*(pyInt: IntObject, res: var uint): bool =
   ## like `toInt`<#toInt,IntObject,int>`_ but for `uint`
-  if pyInt.negative: false
+  if pyInt.isNegative: false
   else: pyInt.absToUInt(res)
 
 #TODO:intobject miss
@@ -114,7 +114,7 @@ proc toUInt*(pyInt: IntObject, res: var uint): bool =
 #     return Int_OverflowCType"ssize_t"
 
 # proc PyLong_AsSize_t*(pyInt: IntObject, res: var uint): PyOverflowErrorObject =
-#   if pyInt.negative:
+#   if pyInt.isNegative:
 #     newOverflowError(newPyAscii"can't convert negative value to unsigned int")
 #   elif pyInt.absToUInt res: nil
 #   else: Int_OverflowCType"size_t"

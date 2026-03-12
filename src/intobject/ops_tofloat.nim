@@ -31,7 +31,7 @@ proc toFloat*(pyInt: IntObject): float{.pyCFuncPragma.} =
   var ovf: bool
   result = pyInt.toFloat ovf
   if not ovf: return
-  result = if pyInt.negative: NegInf
+  result = if pyInt.isNegative: NegInf
   else: Inf
 
 proc toFloat*(pyInt: IntObject; res: var float): bool{.pyCFuncPragma.} =

@@ -3,13 +3,13 @@ import ./[decl_private, decl]
 proc setSignNegative*(self: var IntObject){.inline.} =
   self.sign = Negative
 
-proc negative*(intObj: IntObject): bool {. inline .} =
+proc isNegative*(intObj: IntObject): bool {. inline .} =
   intObj.sign == Negative
 
-proc zero*(intObj: IntObject): bool {. inline .} =
+proc isZero*(intObj: IntObject): bool {. inline .} =
   intObj.sign == Zero
 
-proc positive*(intObj: IntObject): bool {. inline .} =
+proc isPositive*(intObj: IntObject): bool {. inline .} =
   intObj.sign == IntSign.Positive
 
 proc flipSign*(intObj: var IntObject) =

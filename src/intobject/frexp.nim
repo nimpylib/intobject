@@ -115,4 +115,4 @@ proc frexp*(a: IntObject, e: var int64): float =
       a_bits += 1
 
   e = a_bits
-  return if a.negative: -dx else: dx
+  return if a.isNegative: -dx else: dx
