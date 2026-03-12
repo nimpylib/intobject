@@ -40,6 +40,9 @@ template private_mixOpPyWithNim_with_div_mod_bitwise*(mixb, mix){.dirty.} =
   private_mixOpPyWithNim mixb, mix
   mix `div`
   mix `mod`
+  mix `floordiv`
+  mix `floormod`
+  mix `ceilDiv`
 
   mix `and`
   mix `or`

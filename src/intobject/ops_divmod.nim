@@ -343,3 +343,9 @@ proc tryDivmod(v, w: IntObject, divRes, modRes: var IntObject): bool{.pyCFuncPra
      (modRes.sign == IntSign.Positive and w.sign == Negative):
     modRes = modRes + w
     divRes = divRes - intOne
+
+proc ceilDiv*(a, b: IntObject): IntObject =
+  var (q, r) = divrem(a, b)
+  if not r.zero and not (a.negative xor b.negative):
+    return q + intOne
+  return q
