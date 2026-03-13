@@ -22,3 +22,9 @@ proc negate*(self: var IntObject){.inline.} =
   ##
   ## currently the same as `flipSign`_ as we didn't have small int
   self.flipSign
+
+proc isOdd*(i: IntObject): bool =
+  not i.isZero and (i.digits[0] mod 2 == 1)
+
+proc isEven*(i: IntObject): bool =
+  i.isZero or (i.digits[0] mod 2 == 0)

@@ -4,12 +4,6 @@ import ./[
   ops_basic_arith, ops_divmod,
 ]
 
-proc isOdd*(i: IntObject): bool =
-  not i.isZero and (i.digits[0] mod 2 == 1)
-
-proc isEven*(i: IntObject): bool =
-  i.isZero or (i.digits[0] mod 2 == 0)
-
 proc posShr1(posI: IntObject): IntObject =
   #TODO:opt
   return posI.floordivNonZero intTwo
