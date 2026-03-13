@@ -99,6 +99,14 @@ proc doMul(a, b: IntObject): IntObject =
   for intObj in ints[1..^1]:
     result = result.doAdd(intObj)
 
+
+proc `<%`*(a, b: IntObject): bool = doCompare(a, b) == Negative
+proc `>%`*(a, b: IntObject): bool = doCompare(a, b) == IntSign.Positive
+proc `<=%`*(a, b: IntObject): bool = doCompare(a, b) != IntSign.Positive
+proc `>=%`*(a, b: IntObject): bool = doCompare(a, b) != Negative
+proc `==%`*(a, b: IntObject): bool = doCompare(a, b) == Zero
+proc `!=%`*(a, b: IntObject): bool = doCompare(a, b) != Zero
+
 proc `<`*(a, b: IntObject): bool =
   case a.sign
   of Negative:
