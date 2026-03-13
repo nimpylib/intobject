@@ -1,6 +1,7 @@
 
 import std/hashes
 import std/typetraits
+import std/options
 import ./signbit
 import ./[
   decl_private, decl, bit_length,
@@ -85,6 +86,15 @@ proc toSomeUnsignedInt*[U: SomeUnsignedInt](pyInt: IntObject, overflow: var IntS
   overflow = if pyInt.isNegative: Negative
   elif pyInt.absToUInt(result): Zero
   else: IntSign.Positive
+
+func toInt*[T: SomeInteger](x: IntObject): Option[T] =
+  var ovf: IntSign
+  let res = (when T is SomeSignedInt: toSomeSignedInt else: toSomeUnsignedInt)[T](x, ovf)
+  if ovf == IntSign.Zero:
+    some res
+  else:
+    none(T)
+
 proc toUInt*(pyInt: IntObject, overflow: var IntSign): uint =
   ## like `toInt`<#toInt,IntObject,IntSign>`_ but for `uint`
   toSomeUnsignedInt[uint](pyInt, overflow)
