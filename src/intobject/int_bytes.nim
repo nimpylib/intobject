@@ -172,6 +172,9 @@ proc to_bytes*[T: char|uint8|int8](self; length: int, endianness: Endianness, si
       res[pos] = cast[T](byteVal)
     else:
       res[length - 1 - pos] = cast[T](byteVal)
+  if length > self.byteCount:
+    for i in self.byteCount ..< length:
+      res[i] = T 0
 
 template toX(X; runnableExamples2){.dirty.} =
   proc `to X s`*(self; length: int, endianness: Endianness, signed=false): seq[X] =
