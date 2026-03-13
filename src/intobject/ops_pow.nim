@@ -61,3 +61,187 @@ proc pow*(a, b: IntObject): IntObject =
   if b.isNegative:
     raise newException(ValueError, "negative exponent will result in float")
   powNatural(a, b)
+
+const
+  hugeExpCutoff = 60
+  expWindowSize = 5
+  expTableLen = 1 shl (expWindowSize - 1)
+
+proc reducePowTerm(x, modulus: IntObject): IntObject {.inline.} =
+  if modulus.digits.len == 1:
+    x mod modulus.digits[0]
+  else:
+    x % modulus
+
+proc mulReduce(x, y, modulus: IntObject): IntObject {.inline.} =
+  reducePowTerm(x * y, modulus)
+
+proc invMod(a, modulus: IntObject): IntObject =
+  ##[ if exponent is negative, negate the exponent and
+        replace the base with a modular inverse ]##
+  var t = intZero
+  var newT = intOne
+  var r = modulus
+  var newR = a % modulus
+
+  while not newR.isZero:
+    let (q, rem) = divmodNonZero(r, newR)
+    let nextT = t - q * newT
+    t = newT
+    newT = nextT
+    r = newR
+    newR = rem
+
+  if r != intOne:
+    raise newException(ValueError, "base is not invertible for the given modulus")
+
+  if t.isNegative:
+    t = t + modulus
+  t
+
+template absorbPending(z, pending, blen, table, modulus) =
+  block:
+    var ntz = 0
+    #[ number of trailing zeroes in `pending` ]#
+    assert pending != 0 and blen != 0
+    assert (pending shr (blen - 1)) != 0
+    assert (pending shr blen) == 0
+    while (pending and 1) == 0:
+      inc ntz
+      pending = pending shr 1
+    assert ntz < blen
+    blen -= ntz
+    while blen > 0:
+      z = mulReduce(z, z, modulus)
+      dec blen
+    z = mulReduce(z, table[pending shr 1], modulus)
+    while ntz > 0:
+      z = mulReduce(z, z, modulus)
+      dec ntz
+    assert blen == 0
+    pending = 0
+
+proc powMod*(v, w, x: IntObject): IntObject =
+  var a = v
+  var b = w
+  var c = x
+  var negativeOutput = false
+
+  #[ if modulus == 0:
+            raise ValueError() ]#
+  if c.isZero:
+    raise newException(ValueError, "pow() 3rd argument cannot be 0")
+
+  #[ if modulus < 0:
+            negativeOutput = True
+            modulus = -modulus ]#
+  if c.isNegative:
+    negativeOutput = true
+    c = -c
+
+  #[ if modulus == 1:
+            return 0 ]#
+  if c == intOne:
+    return intZero
+
+  if b.isNegative:
+    b = -b
+    a = invMod(a, c)
+
+  #[ Reduce base by modulus in some cases:
+        1. If base < 0. Forcing the base non-negative makes things easier.
+        2. If base is obviously larger than the modulus.
+  ]#
+  if a.isNegative or a.digits.len > c.digits.len:
+    a = reducePowTerm(a, c)
+
+  #[ At this point a, b, and c are guaranteed non-negative. ]#
+  var z = intOne
+  var i = b.digits.len
+  var bi: Digit = (if i > 0: b.digits[i - 1] else: Digit(0))
+  var bit: Digit
+
+  if i <= 1 and bi <= 3:
+    #[ aim for minimal overhead ]#
+    if bi >= 2:
+      z = mulReduce(a, a, c)
+      if bi == 3:
+        z = mulReduce(z, a, c)
+    elif bi == 1:
+      #[ Multiplying by 1 serves two purposes: if `a` is of an int
+            subclass, makes the result an int, and potentially reduces
+            `a` by the modulus. ]#
+      z = mulReduce(a, z, c)
+    #[ else bi is 0, and z==1 is correct ]#
+  elif i <= hugeExpCutoff div PyLong_SHIFT:
+    #[ Left-to-right binary exponentiation (HAC Algorithm 14.79)
+          https://cacr.uwaterloo.ca/hac/about/chap14.pdf ]#
+
+    #[ Find the first significant exponent bit. Search right to left
+          because we're primarily trying to cut overhead for small powers. ]#
+    assert bi != 0
+    z = a
+    bit = 2
+    while true:
+      if bit > bi:
+        #[ found the first bit ]#
+        assert (bi and bit) == 0
+        bit = bit shr 1
+        assert (bi and bit) != 0
+        break
+      bit = bit shl 1
+
+    dec i
+    bit = bit shr 1
+    while true:
+      while bit != 0:
+        z = mulReduce(z, z, c)
+        if (bi and bit) != 0:
+            z = mulReduce(z, a, c)
+        bit = bit shr 1
+      dec i
+      if i < 0:
+        break
+      bi = b.digits[i]
+      bit = Digit(1) shl (PyLong_SHIFT - 1)
+  else:
+    #[ Left-to-right k-ary sliding window exponentiation
+          (Handbook of Applied Cryptography (HAC) Algorithm 14.85) ]#
+    var table = newSeq[IntObject](expTableLen)
+    table[0] = a
+    let a2 = mulReduce(a, a, c)
+
+    #[ table[i] == a**(2*i + 1) % c ]#
+    for tableIdx in 1..<expTableLen:
+      table[tableIdx] = mulReduce(table[tableIdx - 1], a2, c)
+
+    #[ Repeatedly extract the next (no more than) expWindowSize bits
+          into `pending`, starting with the next 1 bit. The current bit
+          length of `pending` is `blen`. ]#
+    var pending = 0
+    var blen = 0
+
+    for digitIdx in countdown(b.digits.len - 1, 0):
+      let biDigit = b.digits[digitIdx]
+      for j in countdown(PyLong_SHIFT - 1, 0):
+        let bitValue = int((biDigit shr j) and Digit(1))
+        pending = (pending shl 1) or bitValue
+        if pending != 0:
+          inc blen
+          if blen == expWindowSize:
+            absorbPending(z, pending, blen, table, c)
+        else:
+          #[ absorb strings of 0 bits ]#
+          z = mulReduce(z, z, c)
+
+      if pending != 0:
+        absorbPending(z, pending, blen, table, c)
+
+  if negativeOutput and not z.isZero:
+    z = z - c
+
+  z
+
+template toIntObj(x: IntObject): IntObject = x
+template toIntObj(x: SomeInteger): IntObject = newInt x
+proc pow*[V, W, X: SomeIntegerOrObj](v: V, w: W, x: X): IntObject = powMod(toIntObj(v), toIntObj(w), toIntObj(x))

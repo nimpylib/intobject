@@ -47,6 +47,8 @@ type IntObject* = object
   pri_sign: IntSign
   pri_digits: seq[Digit]
 
+type SomeIntegerOrObj* = SomeInteger | IntObject
+
 {.push inline.}
 func sign*(self: IntObject): IntSign = self.pri_sign  ## public api (the only one among these accessors)
 func digits*(self: IntObject): seq[Digit] = self.pri_digits  ## inner

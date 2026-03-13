@@ -2,8 +2,6 @@
 import std/macros
 import ./[decl, ops_mix_nim]
 
-type SomeIntegerOrObj* = SomeInteger | IntObject
-
 template genAnnAssignAux(inplaceop, op){.dirty.} =
   proc inplaceop*(a: var IntObject; b: SomeIntegerOrObj){.inline.} =
     a = op(a, b)
