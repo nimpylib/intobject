@@ -239,3 +239,54 @@ proc powMod*(v, w, x: IntObject): IntObject =
 template toIntObj(x: IntObject): IntObject = x
 template toIntObj(x: SomeInteger): IntObject = newInt x
 proc pow*[V, W, X: SomeIntegerOrObj](v: V, w: W, x: X): IntObject = powMod(toIntObj(v), toIntObj(w), toIntObj(x))
+
+proc divmodNear*(a, b: IntObject): tuple[q, r: IntObject] =
+  ## `_PyLong_DivmodNear`.
+  ##
+  ## where q is the nearest integer to the quotient a / b (the
+  ## nearest even integer in the case of a tie) and r == a - q * b.
+  ##
+  ## Hence q * b = a - r is the nearest multiple of b to a,
+  ## preferring even multiples in the case of a tie.
+  ##
+  ## This assumes b is positive.
+  var (q, r) = divmod(a, b)
+  let twiceR = r * intTwo
+  if twiceR > b or (twiceR == b and q.isOdd):
+    q = q + intOne
+    r = r - b
+  (q, r)
+
+proc roundImpl(self, oNdigits: IntObject): IntObject{.raises: [].} =
+  ## Rounding with an ndigits argument also returns an integer.
+  ##
+  ## To round an integer m to the nearest 10**n (n positive), we make use of
+  ## the divmod_near operation, defined by:
+  ##
+  ##   divmod_near(a, b) = (q, r)
+  ##
+  ## where q is the nearest integer to the quotient a / b (the
+  ## nearest even integer in the case of a tie) and r == a - q * b.
+  ## Hence q * b = a - r is the nearest multiple of b to a,
+  ## preferring even multiples in the case of a tie.
+  ##
+  ## So the nearest multiple of 10**n to m is:
+  ##
+  ##   m - divmod_near(m, 10**n)[1].
+
+  ## if ndigits >= 0 then no rounding is necessary; return self unchanged
+  if not oNdigits.isNegative:
+    return self
+
+  ## result = self - divmod_near(self, 10 ** -ndigits)[1]
+  let ndigits = -oNdigits
+  let scale = powPos(intTen, ndigits)
+  let (_, rem) = divmodNear(self, scale)
+  self - rem
+
+proc round*(self: IntObject; oNdigits: SomeIntegerOrObj): IntObject =
+  ## this is like Python's built-in round() for integers, which accepts an optional second argument ndigits.
+  ## 
+  ## If ndigits is negative, it rounds to the nearest multiple of 10**(-ndigits).
+  ## If two multiples are equally close, rounding is done toward the even choice.
+  roundImpl(self, toIntObj(oNdigits))
