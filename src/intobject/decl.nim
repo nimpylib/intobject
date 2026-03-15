@@ -9,6 +9,11 @@ import ./decl_private
 # We do export `sign` (getter), which is public api
 export decl_private except digits, `sign=`, `digits=`
 
+when defined(nimPreviewSlimSystem):
+  import std/assertions
+  export assertions
+
+
 # declarePyType Int(tpToken):
 when isMainModule:
   var a: IntObject

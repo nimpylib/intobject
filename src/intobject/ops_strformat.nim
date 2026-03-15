@@ -6,6 +6,10 @@ import ./[
 ]
 import ./Include/pycore_int
 
+when defined(nimPreviewSlimSystem):
+  import std/formatfloat
+  export formatfloat
+
 template raiseValueError(m) =
   raise newException(ValueError, m)
 
