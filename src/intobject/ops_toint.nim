@@ -1,21 +1,15 @@
 
-import std/hashes
 import std/typetraits
 import std/options
-import ./signbit
+import ./[signbit, hashes]
 import ./[
   decl_private, decl, bit_length,
 ]
 export decl except Digit, TwoDigits, SDigit, digitBits, truncate,
  IntSign
-export bit_length, signbit, decl
+export bit_length, signbit, decl, hashes
 import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
-
-proc hash*(self: IntObject): Hash {. inline, cdecl .} = 
-  result = hash(self.sign)
-  for digit in self.digits:
-    result = result xor hash(digit)
 
 proc toSomeSignedIntUnsafe*[T: SomeSignedInt](pyInt: IntObject): T =
   ## XXX: the caller should take care of overflow
