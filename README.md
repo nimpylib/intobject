@@ -19,6 +19,8 @@ python's `int` object has too many methods/relative functions, none of existing 
 For example, `pkg/bigints` lacks `int.to_bytes`, `int.from_bytes`
 
 ## Features
+- support weird targets (NimScript and JS)
+- support Compile-Time usage
 - mix Nim builtin integers (`SomeInteger`)
   e.g. `1'iobj + 3 == 4`
 
