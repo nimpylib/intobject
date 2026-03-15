@@ -2,6 +2,11 @@
 from std/math import ceilDiv
 import ./bit_length_util
 import ./[decl_private, decl]
+
+when defined(nimPreviewSlimSystem):
+  import std/assertions
+  export assertions
+
 proc digitCount*(v: IntObject): int{.inline.} = v.digits.len  ## `_PyLong_DigitCount`
 proc numbits*(v: IntObject): int64 =
   ## `_PyLong_NumBits`
