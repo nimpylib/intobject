@@ -1,6 +1,6 @@
 
 # js can't process 64-bit int although nim has this type for js
-when defined(js):
+when defined(js) or sizeof(pointer) < 8:
   type
     Digit = uint16
     TwoDigits = uint32
