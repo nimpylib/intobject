@@ -6,6 +6,7 @@ import ./[
   ops_mix_nim,
 ]
 
+{.push raises :[].}
 proc gcd*(a, b: IntObject): IntObject =
   var left = abs(a)
   var right = abs(b)
@@ -19,7 +20,7 @@ proc gcd*(a, b: IntObject): IntObject =
   if left.absToUInt(leftU) and right.absToUInt(rightU):
     return newInt(gcd(leftU, rightU))
 
-  var shift = 0
+  var shift: BiggestUInt = 0
   while isEven(left) and isEven(right):
     left = left shr 1
     right = right shr 1
@@ -41,3 +42,5 @@ proc lcm*(a, b: IntObject): IntObject =
   if a.isZero or b.isZero:
     return intZero
   abs(a // gcd(a, b) * b)
+{.pop.}
+
