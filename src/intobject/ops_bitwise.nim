@@ -206,6 +206,7 @@ proc long_lshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
 
 const ShiftMayOvf = int.high.BiggestUInt <= (BiggestUInt.high div digitBits)
 
+const negShMsg = "negative shift count"
 template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
   proc sh*(a: IntObject, shiftby: BiggestUInt, shiftMayOvf: static[bool] = ShiftMayOvf): IntObject =
     # long_lshift_int64
@@ -220,10 +221,13 @@ template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
       remshift = cast[uint8](tup[1])
     return implname(a, wordshift, remshift)
 
+  proc sh*(a: IntObject, shiftby: static SomeInteger): IntObject{.raises: [].} =
+    when shiftby > 0: sh(a, cast[BiggestUInt](shiftBy))
+    else: {.error: negShMsg.}
 
   proc sh*(a, b: IntObject): IntObject =
     if b.isNegative:
-      raise newException(ValueError, "negative shift count")
+      raise newException(ValueError, negShMsg)
     var overflow: IntSign
     let shiftby = b.toSomeUnsignedInt[:BiggestUInt](overflow)
     if overflow != Zero:
@@ -241,5 +245,8 @@ when isMainModule:
   import ./ops
   let
     a = newInt "0b10"
-  echo a shr 1
-  echo a shr 2
+  proc f{.raises: [].} =
+    echo a shr 1
+    echo a shr 2
+  f()
+
