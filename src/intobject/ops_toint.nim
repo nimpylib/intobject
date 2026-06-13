@@ -11,14 +11,19 @@ export bit_length, signbit, decl, hashes
 import ./Include/pycore_int
 export PY_INT_MAX_STR_DIGITS_THRESHOLD, PY_INT_DEFAULT_MAX_STR_DIGITS
 
-proc toSomeSignedIntUnsafe*[T: SomeSignedInt](pyInt: IntObject): T =
-  ## XXX: the caller should take care of overflow
-  ##  It raises `OverflowDefect` on non-danger build
+proc toSomeUnsignedIntUnsafeAux[T](pyInt: IntObject): T =
   for i in countdown(pyInt.digits.high, 0):
     result = result shl digitBits
     result += T(pyInt.digits[i])
+proc toSomeUnsignedIntUnsafe*[T: SomeUnsignedInt](pyInt: IntObject): T =
+  ## discard sign and assuming not overflow
+  pyInt.toSomeUnSignedIntUnsafeAux[:T]
+proc toSomeSignedIntUnsafe*[T: SomeSignedInt](pyInt: IntObject): T =
+  ## XXX: the caller should take care of overflow
+  ##  It raises `OverflowDefect` on non-danger build
+  result = pyInt.toSomeUnSignedIntUnsafeAux[:T]
   if pyInt.sign == Negative:
-    result *= -1
+    result = -result
 
 template PY_ABS_INT_MIN(T): untyped = cast[T.toUnsigned](T.low) ## \
 ## we cannot use `0u - cast[BiggestUInt](BiggestInt.low)` unless with rangeChecks:off
