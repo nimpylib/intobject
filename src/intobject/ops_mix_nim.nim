@@ -1,6 +1,7 @@
 
 import ./decl
 import ./[ops, ops_bitwise]
+import ./math/permcomb
 #[ XXX:NIM-BUG: not works:
 import std/macros
 macro private_mixOpIntWithNim*{(`+`|`-`|`*`|`div`|`mod`){op}(a, b)}(
@@ -50,6 +51,8 @@ template private_mixOpPyWithNim_with_div_mod_bitwise*(mixb, mix){.dirty.} =
   mix `shl`
   mix `shr`
 
+mix comb
+mix perm
 private_mixOpPyWithNim_with_div_mod_bitwise mix, mix
 
 when isMainModule:
