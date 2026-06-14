@@ -8,7 +8,6 @@ import ./[decl_private, decl,
 include ./private/common_h
 
 using self: IntObject
-type STwoDigit = SDigit
 const maxValue = TwoDigits(high(Digit)) + 1
 
 func fastExtract1(a: IntObject): SDigit =
@@ -190,23 +189,21 @@ proc xDivRem(v1, w1: IntObject, prem: var IntObject): IntObject =
   # Allocate space for v and w
   v = newIntSimple()
   v.digits.setLen(sizeV + 1)
-  w = newIntSimple()
-  w.digits.setLen(sizeW)
+  w = newIntOfLen(sizeW)
 
   # Normalize: shift w1 left so its top digit is >= maxValue / 2
   let d = digitBits - bitLength(w1.digits[^1])
   let carryW = vLShift(w.digits, w1.digits, sizeW, d)
   assert carryW == 0
   let carryV = vLShift(v.digits, v1.digits, sizeV, d)
-  if carryV != 0 or v.digits[^1] >= w.digits[^1]:
-    v.digits.add carryV
+  if carryV != 0 or v.digits[sizeV - 1] >= w.digits[^1]:
+    v.digits[sizeV] = carryV
     inc sizeV
 
   # Quotient has at most `k = sizeV - sizeW` digits
   let k = sizeV - sizeW
   assert k >= 0
-  a = newIntSimple()
-  a.digits.setLen(k)
+  a = newIntOfLen(k)
 
   var v0 = v.digits
   let w0 = w.digits
@@ -218,41 +215,56 @@ proc xDivRem(v1, w1: IntObject, prem: var IntObject): IntObject =
     let vtop = v0[vk + sizeW]
     assert vtop <= wm1
     let vv = (TwoDigits(vtop) shl digitBits) or TwoDigits(v0[vk + sizeW - 1])
-    var q = Digit(vv div wm1)
-    var r = Digit(vv mod wm1)
+    var q: TwoDigits
+    var r: TwoDigits
+    if vtop == wm1:
+      q = maxValue - 1
+      r = TwoDigits(v0[vk + sizeW - 1]) + TwoDigits(wm1)
+    else:
+      q = vv div wm1
+      r = vv mod wm1
 
-    while TwoDigits(wm2) * TwoDigits(q) > ((TwoDigits(r) shl digitBits) or TwoDigits(v0[vk + sizeW - 2])):
+    while r < maxValue and
+        TwoDigits(wm2) * q > ((r shl digitBits) or TwoDigits(v0[vk + sizeW - 2])):
       dec q
       r += wm1
       if r >= maxValue:
         break
-    assert q <= maxValue
+    assert q < maxValue
 
-    # Subtract `q * w0[0:sizeW]` from `v0[vk:vk+sizeW+1]`
-    var zhi: SDigit = 0
+    # Subtract `q * w0[0:sizeW]` from `v0[vk:vk+sizeW+1]`.
+    # A digit product can consume the whole unsigned double-digit range, so do
+    # the borrow propagation without signed double-digit temporaries.
+    var zhi = TwoDigits 0
     for i in 0..<sizeW:
-      let z = (SDigit(v0[vk + i]) + zhi).STwoDigit - STwoDigit(q) * STwoDigit(w0[i])
-      v0[vk + i] = truncate(cast[Digit](z))
-      zhi = z shr digitBits
+      let product = q * TwoDigits(w0[i]) + zhi
+      let low = truncate(product)
+      zhi = product shr digitBits
+      if v0[vk + i] < low:
+        v0[vk + i] = truncate(maxValue + TwoDigits(v0[vk + i]) - TwoDigits(low))
+        inc zhi
+      else:
+        v0[vk + i] = v0[vk + i] - low
 
-    let svtop = SDigit vtop
-    assert svtop + zhi == -1 or svtop + zhi == 0
+    assert zhi == TwoDigits(vtop) or zhi == TwoDigits(vtop) + 1
     # Add back `w` if `q` was too large
-    if svtop + zhi < 0:
-      var carry = Digit 0
+    if zhi == TwoDigits(vtop) + 1:
+      var carry = TwoDigits 0
       for i in 0..<sizeW:
-        carry += v0[vk + i] + w0[i]
+        carry += TwoDigits(v0[vk + i]) + TwoDigits(w0[i])
         v0[vk + i] = truncate(carry)
         carry = carry shr digitBits
       dec q
 
     # Store quotient digit
-    a.digits[vk] = q
+    a.digits[vk] = Digit q
 
   # Unshift remainder
   let carry = vRShift(w.digits, v0, sizeW, d)
   assert carry == 0
+  w.normalize()
   prem = w
+  a.normalize()
   return a
 
 proc tryRem(a, b: IntObject, prem: var IntObject): bool{.pyCFuncPragma.} =
