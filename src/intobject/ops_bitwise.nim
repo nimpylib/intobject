@@ -165,7 +165,7 @@ proc long_rshift1(a: IntObject, wordshift: int, remshift: uint8): IntObject =
 
   for j in (wordshift+1)..<oldsize:
     accum = accum +
-      TwoDigits(a.digits[j]) shl remshift
+      TwoDigits(a.digits[j]) shl hishift
     z.digits[i] = cast[Digit](accum)
     accum = accum shr digitBits
     i.inc
@@ -249,4 +249,3 @@ when isMainModule:
     echo a shr 1
     echo a shr 2
   f()
-
