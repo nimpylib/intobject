@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.3"
+version       = "0.1.4"
 author        = "litlighilit"
 description   = "bigint (arbitrary precision integers) library, more ops/methods defined"
 license       = "MIT"
