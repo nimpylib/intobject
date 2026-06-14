@@ -34,8 +34,11 @@ proc copyOnlyDigits*(intObj: IntObject): IntObject =
   result = newIntSimple()
   result.digits = intObj.digits
 proc normalize*(a: var IntObject) =
-  for i in 0..<a.digits.len:
+  for _ in 0..<a.digits.len:
     if a.digits[^1] == 0:
       discard a.digits.pop()
     else:
       break
+  if a.digits.len == 0:
+    a.sign = IntSign.Zero
+
