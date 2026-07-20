@@ -51,7 +51,10 @@ func fill[I: SomeInteger](digits: var seq[Digit], ui: I){.cdecl.} =
       when sizeof(I) <= sizeof(SDigit): ui
       else: ui mod I(sMaxValue)
     )
-    ui = ui shr digitBits
+    when digitBits < 8 * sizeof I:
+      ui = ui shr digitBits
+    else:
+      return # ui = 0
 
 proc newInt*[I: SomeSignedInt](i: I): IntObject =
   result = newIntSimple()
