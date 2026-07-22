@@ -215,7 +215,7 @@ template genShift(sh, implname; doOnShiftbyOverflow){.dirty.} =
       if shiftby > BiggestUInt(int.high) * digitBits:
         doOnShiftbyOverflow
 
-    let tup = divmod(shiftby, digitBits)
+    let tup = divmod(shiftby, BiggestUInt(digitBits))
     let
       wordshift = int(tup[0])
       remshift = cast[uint8](tup[1])

@@ -13,7 +13,7 @@ proc isqrtPositive*(n: IntObject): IntObject =
   if c <= 31:
     let m = n.toSomeUnsignedIntUnsafe[:uint64]
     let res = isqrtPositive m
-    return newInt res
+    return newInt uint32(res) # `uint32` to avoid js `Invalid array length`
 
   #[ Slow path: n >= 2**64. We perform the first five iterations in C integer
 arithmetic, then switch to using Python long integers]#
@@ -31,7 +31,8 @@ arithmetic, then switch to using Python long integers]#
   let notOvf = b.absToUInt(m)
   if not notOvf:
     raise newException(OverflowDefect, "int cannot fit into a BiggestUInt")
-  let u = approximate_isqrt(m) shr (31 - d)
+  let u = approximate_isqrt(m) shr int(31 - d)
+  # above `int` to avoid js `cannot mix bigint with number`
   var a = newInt u
   for s in countdown(c_bit_length - 6, 0):
     var q: IntObject
