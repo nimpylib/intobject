@@ -64,14 +64,16 @@ proc doSub(a, b: IntObject): IntObject =
 
   # Perform subtraction digit by digit
   for i in 0..<sizeB:
-    let diff = TwoDigits(larger.digits[i]) - TwoDigits(smaller.digits[i]) - TwoDigits(borrow)
+    let subtrahend = TwoDigits(smaller.digits[i]) + TwoDigits(borrow)
+    let diff = TwoDigits(larger.digits[i]) - subtrahend
     result.digits[i] = truncate(diff)
-    borrow = diff < 0
+    borrow = TwoDigits(larger.digits[i]) < subtrahend
 
   for i in sizeB..<sizeA:
-    let diff = TwoDigits(larger.digits[i]) - TwoDigits(borrow)
+    let subtrahend = TwoDigits(borrow)
+    let diff = TwoDigits(larger.digits[i]) - subtrahend
     result.digits[i] = truncate(diff)
-    borrow = diff < 0
+    borrow = TwoDigits(larger.digits[i]) < subtrahend
 
   # Normalize the result to remove leading zeros
   result.normalize()
